@@ -15,7 +15,12 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   services of their own or another feature, never repositories.
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
   `OpenApiConfiguration`) and `exception/ApiExceptionHandler` (error mapping).
-- Match `StatusController` / `StatusService`. Tests: `StatusIntegrationTest`, `LoggingAspectTest`.
+- Match `SubjectController` / `SubjectService` (CRUD) and `TopicService` (tree, ownership through the
+  subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest` (they create
+  data through the endpoints with `support/StudyApiClient`), `LoggingAspectTest`.
+- Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and `ItemService` throw
+  `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
+  through these methods, never through another feature's repository.
 - The project does not use Lombok; write constructors and loggers explicitly.
 
 ## Naming exceptions
@@ -31,7 +36,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 ## Users
 
 - Every user-owned table has a `user_id` column from its first migration.
-- Until login is added, services take the user from `AppProperties.currentUserId()`
+- Until login is added, services take the user from `CurrentUser.getUserId()`, which reads `AppProperties.currentUserId()`
   (`app.current-user-id`, default 1, seeded by V1). Never accept a user id from request bodies or
   query parameters.
 
@@ -43,6 +48,8 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   the H2 tests will not match production. Flyway is off in tests.
 - The `study_track` database is on the same local PostgreSQL server as Folio Pro but is a separate
   database; never reference Folio tables.
+- H2 has no `TEXT` type that Hibernate validates as `VARCHAR`; mirror PostgreSQL `TEXT` columns as
+  `VARCHAR(1000000)` in `test-schema.sql`.
 - Stored HTML references images as `<img src="/api/v1/media/{id}">`, never base64.
 
 ## Logging
