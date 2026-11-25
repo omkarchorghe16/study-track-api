@@ -233,7 +233,7 @@ descriptions.
 | `GOOD` | +3 days × max(1, earlier reviews), at most 365 | `DONE` on the third `GOOD`/`EASY` in a row or when already `DONE`, else `LEARNING` |
 | `EASY` | +6 days × max(1, earlier reviews), at most 365 | as `GOOD` |
 
-"Today" is the calendar day in `app.time-zone` (`APP_TIME_ZONE`, blank = the server's zone), so cards
+"Today" is the calendar day in `app.time-zone` (`APP_TIME_ZONE`, default `America/Chicago`; blank = the server's zone), so cards
 scheduled for later today are already due.
 
 Tables: `item_progress`, `topic_progress`, `review_log`, `study_sessions`.

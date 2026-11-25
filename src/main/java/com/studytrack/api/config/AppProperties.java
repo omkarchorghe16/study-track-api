@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
  * @param currentUserId user every request acts as until login is added
  * @param cors          browser origins allowed to call {@code /api/**}
  * @param timeZone      zone that decides what "today" means for due reviews, streaks and the activity
- *                      chart, for example {@code Asia/Kolkata}; blank means the server's zone
+ *                      chart, default {@code America/Chicago}; blank means the server's zone
  */
 @Validated
 @ConfigurationProperties("app")

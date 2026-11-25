@@ -78,7 +78,7 @@ open http://localhost:8083/swagger-ui.html
 | `FRONTEND_ORIGIN` | `http://localhost:4201` | Allowed CORS origin for `/api/**` |
 | `APP_CURRENT_USER_ID` | `1` | User every request acts as until login exists |
 | `APP_LOG_LEVEL` | `INFO` | Log level for `com.studytrack.api` |
-| `APP_TIME_ZONE` | blank (server zone) | Zone that decides "today" for due flashcards, streaks and the activity chart, e.g. `Asia/Kolkata` |
+| `APP_TIME_ZONE` | `America/Chicago` | Zone that decides "today" for due flashcards, streaks and the activity chart (blank = the server's zone) |
 | `MEDIA_STORAGE_DIR` | `./data/media` (`/app/data/media` in Docker) | Where uploaded images are stored (git-ignored) |
 | `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
 
