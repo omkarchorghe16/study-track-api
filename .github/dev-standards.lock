@@ -1,0 +1,17 @@
+# Written by dev-standards/sync.sh. Do not edit; run sync.sh instead.
+source https://github.com/omkarchorghe16/dev-standards
+commit 82f1e5b
+stacks common java-spring
+file .claude/skills/java-coding-standards/SKILL.md
+file .github/instructions/architecture.instructions.md
+file .github/instructions/change-hygiene.instructions.md
+file .github/instructions/coding-standards.instructions.md
+file .github/instructions/logging.instructions.md
+file .github/instructions/naming-and-readability.instructions.md
+file .github/instructions/spring-boot.instructions.md
+file .github/skills/spring-boot-architecture/SKILL.md
+file .github/skills/spring-boot-jpa/SKILL.md
+file .github/skills/spring-boot-logging/SKILL.md
+file .github/skills/spring-boot-provider-integration/SKILL.md
+file .github/skills/spring-boot-rest-api/SKILL.md
+file .github/skills/spring-boot-testing/SKILL.md

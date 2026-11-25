@@ -1,0 +1,21 @@
+# The study_track database lives on the same local PostgreSQL as Folio Pro, running on the host.
+# Compose runs only the API.
+services:
+  study-track-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: study-track-api:local
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      SERVER_PORT: 8083
+      POSTGRES_URL: jdbc:postgresql://host.docker.internal:${POSTGRES_HOST_PORT:-5432}/${POSTGRES_DB:-study_track}
+      POSTGRES_USER: ${POSTGRES_USER:-study_track}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:4201}
+      APP_CURRENT_USER_ID: ${APP_CURRENT_USER_ID:-1}
+      APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
