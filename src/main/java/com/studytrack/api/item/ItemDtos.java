@@ -88,4 +88,19 @@ public final class ItemDtos {
             long totalItems,
             int totalPages) {
     }
+
+    /**
+     * Body of POST /items/duplicate-check: the item being written. {@code itemId} is the item being
+     * edited, which is not reported as its own duplicate.
+     */
+    public record DuplicateCheckRequest(
+            @NotNull Long topicId,
+            @NotBlank @Size(max = 300) String title,
+            @Size(max = 500_000) String questionHtml,
+            Long itemId) {
+    }
+
+    /** An existing item of the same subject with the same question (same content hash). */
+    public record DuplicateItemResponse(Long id, String title, Long topicId, String topicName) {
+    }
 }

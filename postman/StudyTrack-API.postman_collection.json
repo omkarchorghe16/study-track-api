@@ -498,6 +498,89 @@
               ]
             }
           }
+        },
+        {
+          "name": "Check for duplicate items",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/items/duplicate-check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "duplicate-check"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicId\": {{topicId}},\n  \"title\": \"How does HashMap work?\",\n  \"questionHtml\": \"<p>How does a <b>HashMap</b> work?</p>\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Duplicates listed', function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/items/search?q=hash&page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "hash"
+                },
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search results', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().items).to.be.an('array'); });"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

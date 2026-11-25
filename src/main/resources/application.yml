@@ -34,6 +34,10 @@ app:
     # Uploaded images are stored here (relative paths resolve against the working directory).
     storage-dir: ${MEDIA_STORAGE_DIR:./data/media}
     max-image-bytes: ${MEDIA_MAX_IMAGE_BYTES:5242880}
+    # Images no item, topic, open import candidate or import uses are deleted once they are this old
+    # (an editor upload that was never saved, or an image removed by an edit). Daily at 03:30 server time.
+    cleanup-cron: ${MEDIA_CLEANUP_CRON:0 30 3 * * *}
+    cleanup-grace: ${MEDIA_CLEANUP_GRACE:P7D}
   import:
     # Largest uploaded document (.docx, .pdf, .md, .txt); spring.servlet.multipart is the request ceiling.
     max-file-bytes: ${IMPORT_MAX_FILE_BYTES:20971520}

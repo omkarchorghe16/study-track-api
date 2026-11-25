@@ -166,4 +166,38 @@ class ItemIntegrationTest {
     private String hashOf(long itemId) {
         return jdbcTemplate.queryForObject("SELECT content_hash FROM study_items WHERE id = ?", String.class, itemId);
     }
+
+    @Test
+    void duplicateCheckFindsSameQuestionInTheSubjectButNotTheItemItself() throws Exception {
+        long otherTopic = api.createTopic(subjectId, null, "Maps");
+        String created = mvc.perform(post("/api/v1/items").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"topicId":%d,"itemType":"QUESTION","title":"HashMap","questionHtml":"<p>How does a HashMap work?</p>"}
+                        """.formatted(otherTopic)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        long existing = api.readJson(created).get("id").asLong();
+        long otherSubjectTopic = api.createTopic(api.createSubject("Python"), null, "Dicts");
+
+        String check = """
+                {"topicId":%d,"title":"Another title","questionHtml":"<h2>how does a   <b>hashmap</b> WORK?</h2>"%s}
+                """;
+        mvc.perform(post("/api/v1/items/duplicate-check").contentType(MediaType.APPLICATION_JSON)
+                        .content(check.formatted(topicId, "")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(existing))
+                .andExpect(jsonPath("$[0].title").value("HashMap"))
+                .andExpect(jsonPath("$[0].topicName").value("Maps"));
+        mvc.perform(post("/api/v1/items/duplicate-check").contentType(MediaType.APPLICATION_JSON)
+                        .content(check.formatted(topicId, ",\"itemId\":" + existing)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(post("/api/v1/items/duplicate-check").contentType(MediaType.APPLICATION_JSON)
+                        .content(check.formatted(otherSubjectTopic, "")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(post("/api/v1/items/duplicate-check").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"topicId\":%d,\"title\":\" \"}".formatted(topicId)))
+                .andExpect(status().isBadRequest());
+    }
 }

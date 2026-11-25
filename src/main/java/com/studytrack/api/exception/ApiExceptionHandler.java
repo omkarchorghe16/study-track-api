@@ -14,6 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.Instant;
@@ -83,6 +84,13 @@ public class ApiExceptionHandler {
         exception.getConstraintViolations()
                 .forEach(violation -> details.put(violation.getPropertyPath().toString(), violation.getMessage()));
         return response(HttpStatus.BAD_REQUEST, "Request validation failed", details);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiError> missingParameter(MissingServletRequestParameterException exception,
+                                              HttpServletRequest request) {
+        logClientFailure(HttpStatus.BAD_REQUEST.value(), "missing parameter", request);
+        return response(HttpStatus.BAD_REQUEST, "Missing request parameter: " + exception.getParameterName(), Map.of());
     }
 
     @ExceptionHandler({MethodArgumentTypeMismatchException.class,
