@@ -28,6 +28,8 @@ app:
   current-user-id: ${APP_CURRENT_USER_ID:1}
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4201}
+  # Zone for "today" (due reviews, streaks, activity chart), for example Asia/Kolkata. Blank = server zone.
+  time-zone: ${APP_TIME_ZONE:}
   media:
     # Uploaded images are stored here (relative paths resolve against the working directory).
     storage-dir: ${MEDIA_STORAGE_DIR:./data/media}

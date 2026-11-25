@@ -37,19 +37,20 @@ public class ItemController {
     }
 
     @GetMapping("/topics/{topicId}/items")
-    @Operation(summary = "List a topic's items", description = "One page of the topic's own items (not its subtopics'), by sort order. The status filter arrives with progress tracking.")
+    @Operation(summary = "List a topic's items", description = "One page of the topic's own items (not its subtopics'), by sort order, with the current user's status.")
     @ApiResponse(responseCode = "404", description = "No such topic for the current user")
     public ItemPageResponse listTopicItems(
             @PathVariable Long topicId,
             @Parameter(description = "Only items with this difficulty") @RequestParam(required = false) Difficulty difficulty,
             @Parameter(description = "Only items with this tag (case-insensitive)") @RequestParam(required = false) String tag,
+            @Parameter(description = "Only items with this study status") @RequestParam(required = false) ItemStatus status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
-        return itemService.listTopicItems(topicId, difficulty, tag, page, size);
+        return itemService.listTopicItems(topicId, difficulty, tag, status, page, size);
     }
 
     @GetMapping("/items/{itemId}")
-    @Operation(summary = "Get an item", description = "Includes the ids of the previous and next item in the same topic.")
+    @Operation(summary = "Get an item", description = "Includes the ids of the previous and next item in the same topic and the current user's progress.")
     public ItemResponse getItem(@PathVariable Long itemId) {
         return itemService.getItem(itemId);
     }

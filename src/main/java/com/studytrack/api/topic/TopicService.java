@@ -13,10 +13,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,12 +42,14 @@ public class TopicService {
     public List<TopicNodeResponse> listTopicTree(Long subjectId) {
         SubjectEntity subject = subjectService.findOwnedSubject(subjectId);
         List<TopicEntity> topics = topicRepository.findBySubjectIdOrderBySortOrderAscIdAsc(subject.getId());
-        Map<Long, Long> itemCountsByTopic = topicRepository.countItemsByTopic(subject.getId()).stream()
-                .collect(Collectors.toMap(TopicRepository.TopicItemCount::getTopicId,
-                        TopicRepository.TopicItemCount::getItemCount));
+        long userId = currentUser.getUserId();
+        Map<Long, TopicRepository.TopicItemCount> itemCountsByTopic =
+                topicRepository.countItemsByTopic(subject.getId(), userId).stream()
+                        .collect(Collectors.toMap(TopicRepository.TopicItemCount::getTopicId, Function.identity()));
+        Set<Long> completedTopicIds = new HashSet<>(topicRepository.findCompletedTopicIds(subject.getId(), userId));
         Map<Long, List<TopicEntity>> topicsByParent = topics.stream()
                 .collect(Collectors.groupingBy(topic -> Objects.requireNonNullElse(topic.getParentId(), 0L)));
-        return buildNodes(0L, topicsByParent, itemCountsByTopic);
+        return buildNodes(0L, topicsByParent, new TreeCounts(itemCountsByTopic, completedTopicIds));
     }
 
     @Transactional(readOnly = true)
@@ -131,16 +136,25 @@ public class TopicService {
     }
 
     private List<TopicNodeResponse> buildNodes(Long parentKey, Map<Long, List<TopicEntity>> topicsByParent,
-                                               Map<Long, Long> itemCountsByTopic) {
+                                               TreeCounts counts) {
         List<TopicNodeResponse> nodes = new ArrayList<>();
         for (TopicEntity topic : topicsByParent.getOrDefault(parentKey, List.of())) {
-            List<TopicNodeResponse> children = buildNodes(topic.getId(), topicsByParent, itemCountsByTopic);
-            long itemCount = itemCountsByTopic.getOrDefault(topic.getId(), 0L);
+            List<TopicNodeResponse> children = buildNodes(topic.getId(), topicsByParent, counts);
+            TopicRepository.TopicItemCount own = counts.itemCounts().get(topic.getId());
+            long itemCount = own == null ? 0 : own.getItemCount();
+            long doneCount = own == null ? 0 : own.getDoneCount();
             long totalItemCount = itemCount + children.stream().mapToLong(TopicNodeResponse::totalItemCount).sum();
+            long totalDoneCount = doneCount + children.stream().mapToLong(TopicNodeResponse::totalDoneCount).sum();
             nodes.add(new TopicNodeResponse(topic.getId(), topic.getParentId(), topic.getName(),
-                    topic.getDescriptionHtml(), topic.getSortOrder(), itemCount, totalItemCount, children));
+                    topic.getDescriptionHtml(), topic.getSortOrder(), itemCount, totalItemCount, doneCount,
+                    totalDoneCount, SubjectService.percentOf(totalDoneCount, totalItemCount),
+                    counts.completedTopicIds().contains(topic.getId()),
+                    totalItemCount > 0 && totalDoneCount == totalItemCount, children));
         }
         return nodes;
+    }
+
+    private record TreeCounts(Map<Long, TopicRepository.TopicItemCount> itemCounts, Set<Long> completedTopicIds) {
     }
 
     private TopicResponse toResponse(TopicEntity topic) {

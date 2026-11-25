@@ -13,10 +13,12 @@ import org.springframework.validation.annotation.Validated;
  *
  * @param currentUserId user every request acts as until login is added
  * @param cors          browser origins allowed to call {@code /api/**}
+ * @param timeZone      zone that decides what "today" means for due reviews, streaks and the activity
+ *                      chart, for example {@code Asia/Kolkata}; blank means the server's zone
  */
 @Validated
 @ConfigurationProperties("app")
-public record AppProperties(@NotNull @Positive Long currentUserId, @Valid @NotNull Cors cors) {
+public record AppProperties(@NotNull @Positive Long currentUserId, @Valid @NotNull Cors cors, String timeZone) {
 
     /** @param allowedOrigin origin of the Angular app, for example {@code http://localhost:4201} */
     public record Cors(@NotBlank String allowedOrigin) {

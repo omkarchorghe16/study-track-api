@@ -44,8 +44,10 @@ public final class TopicDtos {
     }
 
     /**
-     * One node of the topic tree. {@code itemCount} counts the topic's own items and
-     * {@code totalItemCount} adds those of all its subtopics. Progress is added in phase 4.
+     * One node of the topic tree. {@code itemCount}/{@code doneCount} count the topic's own items and
+     * the {@code total*} fields add those of all its subtopics. {@code percentDone} uses the totals,
+     * rounded down. {@code completed} is the user's own "mark complete"; {@code allItemsDone} is the
+     * hint that every item in the topic and its subtopics is DONE.
      */
     public record TopicNodeResponse(
             Long id,
@@ -55,6 +57,11 @@ public final class TopicDtos {
             int sortOrder,
             long itemCount,
             long totalItemCount,
+            long doneCount,
+            long totalDoneCount,
+            int percentDone,
+            boolean completed,
+            boolean allItemsDone,
             List<TopicNodeResponse> children) {
     }
 }
