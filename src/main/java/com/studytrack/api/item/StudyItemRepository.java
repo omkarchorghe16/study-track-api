@@ -86,4 +86,24 @@ public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long
 
         Long getItemId();
     }
+
+    /** Items of the subject with this content hash, except {@code excludedItemId}, oldest first. */
+    @Query("""
+            select i.id as id, i.title as title, t.id as topicId, t.name as topicName
+            from StudyItemEntity i, TopicEntity t
+            where t.id = i.topicId and t.subjectId = :subjectId and i.contentHash = :contentHash
+              and i.id <> :excludedItemId
+            order by i.id
+            """)
+    List<DuplicateRow> findDuplicates(Long subjectId, String contentHash, Long excludedItemId, Pageable pageable);
+
+    interface DuplicateRow {
+        Long getId();
+
+        String getTitle();
+
+        Long getTopicId();
+
+        String getTopicName();
+    }
 }

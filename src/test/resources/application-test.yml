@@ -16,6 +16,9 @@ app:
   media:
     storage-dir: ${java.io.tmpdir}/study-track-test-media
     max-image-bytes: 2048
+    # Tests call MediaService.deleteUnusedMedia directly; the schedule is off.
+    cleanup-cron: "-"
+    cleanup-grace: P7D
   import:
     max-file-bytes: 1048576
     worker-threads: 1

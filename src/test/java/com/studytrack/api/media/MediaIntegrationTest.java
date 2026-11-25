@@ -19,6 +19,9 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,6 +48,8 @@ class MediaIntegrationTest {
     private JdbcTemplate jdbcTemplate;
     @Autowired
     private MediaProperties mediaProperties;
+    @Autowired
+    private MediaService mediaService;
 
     private StudyApiClient api;
 
@@ -144,6 +149,47 @@ class MediaIntegrationTest {
         mvc.perform(delete("/api/v1/items/" + itemId)).andExpect(status().isNoContent());
         assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_files", Integer.class));
         assertFalse(Files.exists(file));
+    }
+
+    @Test
+    void cleanupDeletesOnlyOldImagesThatNothingUses() throws Exception {
+        long unused = uploadPng("unused.png");
+        long recent = uploadPng("recent.png");
+        long shared = uploadPng("shared.png");
+        long inTopic = uploadPng("topic.png");
+        long subjectId = api.createSubject("Java");
+        long topicId = api.createTopic(subjectId, null, "JVM");
+        long first = api.createItem(topicId, "First", "EASY", "[]");
+        long second = api.createItem(topicId, "Second", "EASY", "[]");
+        // The shared image is linked to the first item only; the second item uses it too.
+        replaceAnswer(topicId, first, "First", "<img src=\\\"/api/v1/media/" + shared + "\\\">");
+        replaceAnswer(topicId, second, "Second", "<p>Also</p><img src=\\\"/api/v1/media/" + shared + "\\\">");
+        replaceAnswer(topicId, first, "First", "<p>No image now</p>");
+        mvc.perform(put("/api/v1/topics/" + topicId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"name":"JVM","descriptionHtml":"<img src=\\"/api/v1/media/%d\\">"}
+                        """.formatted(inTopic)))
+                .andExpect(status().isOk());
+        assertNull(jdbcTemplate.queryForObject("SELECT item_id FROM media_files WHERE id = ?", Long.class, shared));
+        jdbcTemplate.update("UPDATE media_files SET created_at = DATEADD('DAY', -30, CURRENT_TIMESTAMP) WHERE id <> ?", recent);
+        Path unusedFile = storedFile(unused);
+
+        int deleted = mediaService.deleteUnusedMedia(Instant.now().minus(Duration.ofDays(7)));
+
+        assertEquals(1, deleted);
+        assertEquals(List.of(recent, shared, inTopic),
+                jdbcTemplate.queryForList("SELECT id FROM media_files ORDER BY id", Long.class));
+        assertFalse(Files.exists(unusedFile));
+    }
+
+    private long uploadPng(String name) throws Exception {
+        return upload(new MockMultipartFile("file", name, "image/png", pngBytes(1, 1))).get("id").asLong();
+    }
+
+    private void replaceAnswer(long topicId, long itemId, String title, String answerJson) throws Exception {
+        mvc.perform(put("/api/v1/items/" + itemId).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"topicId":%d,"itemType":"QUESTION","title":"%s","answerHtml":"%s"}
+                        """.formatted(topicId, title, answerJson)))
+                .andExpect(status().isOk());
     }
 
     private JsonNode upload(MockMultipartFile file) throws Exception {

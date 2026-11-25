@@ -10,7 +10,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 ## Layout and reference classes
 
 - Base package `com.studytrack.api`, **packaged by feature**: `status`, `user`, and from later phases
-  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`. Each feature holds its
+  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`, `search`. Each feature holds its
   `*Controller`, `*Service`, `*Repository`, `*Entity` and `*Dtos` classes. Controllers call only
   services of their own or another feature, never repositories.
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
@@ -20,7 +20,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   `MediaIntegrationTest`, `ProgressIntegrationTest`, `ImportIntegrationTest`, `LlmSettingsIntegrationTest`
   (they create data through the endpoints with `support/StudyApiClient`; import tests build files with
   `support/TestDocuments`), `HtmlSanitizerTest`, `ReviewSchedulerTest`, `StatsServiceTest`,
-  `DocumentParserTest`, `DocumentChunkerTest`, `AnthropicLlmClientTest` (provider clients with
+  `SearchIntegrationTest`, `SnippetBuilderTest`, `DocumentParserTest`, `DocumentChunkerTest`, `AnthropicLlmClientTest` (provider clients with
   `MockRestServiceServer`), `LoggingAspectTest`.
 - Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and
   `ItemService.findOwnedItem` throw `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
@@ -29,6 +29,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   `subject` and `progress`. `subject`, `topic` and `item` never import `progress`: they read progress
   numbers with their own read-only queries over `item_progress`/`topic_progress`, and `ItemStatus` lives
   in `item`. `importer` uses `llm`, `media`, `item`, `topic` and `subject`; `llm` uses none of them.
+  `search` uses `item` and `subject`; nothing uses `search`.
   Keep it that way to avoid circular dependencies.
 - `progress/ReviewScheduler` holds the spaced-repetition rule (unit-tested in `ReviewSchedulerTest`);
   change the schedule there only. "Today" comes from `config/StudyCalendar` (`app.time-zone`), never
@@ -68,6 +69,13 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 - Uploaded files go through the `media.MediaStorage` interface (`LocalMediaStorage` today, under
   `app.media.storage-dir`). Delete files only after the transaction commits. Detect image types from
   their bytes (`ImageType`), never from the name; SVG stays rejected.
+- Search (`search/ItemSearchRepository`) is native SQL: PostgreSQL uses the generated
+  `study_items.search_vector` column (V8), which Hibernate does not map and H2 cannot create, so H2 tests
+  run the `LIKE` fallback. A new searchable field means a new migration that redefines `search_vector`;
+  check search on PostgreSQL by hand after such a change.
+- `media/MediaFileRepository.findUnusedMedia` decides which images the daily cleanup deletes. A new
+  place that stores HTML with images (or keeps a `media_files` id) must be added to its `not exists`
+  checks, or its images will be deleted.
 
 ## Logging
 

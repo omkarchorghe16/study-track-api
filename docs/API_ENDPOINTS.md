@@ -132,6 +132,7 @@ Tables: `topics`; the tree is built from one query, one grouped count over `stud
 | GET | `/api/v1/topics/{topicId}/items?status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse` |
 | GET | `/api/v1/items/{itemId}` | | `200` `ItemResponse` |
 | POST | `/api/v1/items` | `ItemRequest` | `201` + `Location`, `ItemResponse` |
+| POST | `/api/v1/items/duplicate-check` | `DuplicateCheckRequest` | `200` list of `DuplicateItemResponse` (empty when none) |
 | PUT | `/api/v1/items/{itemId}` | `ItemRequest` | `200` `ItemResponse` |
 | DELETE | `/api/v1/items/{itemId}` | | `204` |
 
@@ -145,6 +146,10 @@ Tables: `topics`; the tree is built from one query, one grouped count over `stud
 - `ItemResponse`: all fields above plus `id`, `subjectId`, `source`, sorted `tags`, `previousItemId` and
   `nextItemId` (neighbours in the topic, or absent), `progress` (`ItemProgressResponse`, see section 9),
   `createdAt`, `updatedAt`.
+- Duplicate check (nothing is saved): `DuplicateCheckRequest` is `topicId` and `title` (required),
+  `questionHtml`, and `itemId` (the item being edited, never reported). It returns up to 5 items of the
+  topic's subject with the same `content_hash` (same question text, or title when there is no question,
+  ignoring case, spacing and formatting), oldest first: `id`, `title`, `topicId`, `topicName`.
 - `ItemPageResponse`: `items` (`id`, `topicId`, `itemType`, `title`, `difficulty`, `tags`, `sortOrder`,
   `hasAnswer`, `status`, `bookmarked`, `updatedAt`), `page`, `size`, `totalItems`, `totalPages`.
 
@@ -153,6 +158,27 @@ Question, answer and notes HTML are sanitised with jsoup on every save (see sect
 the response can differ from what was sent. Images the item references are linked to it in `media_files`;
 images an edit no longer references are unlinked (kept, `item_id` cleared) so they can be used again, and
 all of the item's linked images are deleted with their files when the item is deleted.
+
+### Search
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/items/search?q=&subjectId=&page=0&size=20` | | `200` `SearchPageResponse` |
+
+- `q` (required, ≤200 chars): its words (letters and digits; quotes, operators and punctuation are
+  dropped, at most 10) must all match, each as a word prefix (`hash` finds "HashMap"). A query with no
+  words returns no results. `subjectId` limits to one subject (`404` if not the user's), `page` 0–1000,
+  `size` 1–50.
+- PostgreSQL: `study_items.search_vector` (V8, generated from title A, question B, answer C, notes D,
+  English stemming, GIN index), `to_tsquery('english', 'word:* & …')`, ordered by `ts_rank`, then newest.
+  Other databases (H2 in tests) fall back to case-insensitive `LIKE` on the same fields, title matches first.
+- `SearchPageResponse`: `query` (trimmed), `items`, `page`, `size`, `totalItems`, `totalPages`. Each item:
+  `itemId`, `title`, `itemType`, `difficulty`, `status` (current user), `subjectId`, `subjectName`,
+  `topicId`, `topicName`, `snippet`.
+- `snippet` is plain text from the first of question, answer and notes that contains a match, cut to about
+  220 characters around it, as parts `{text, match}`; `match` marks words to highlight. It is never HTML.
+
+Tables: `study_items`, `topics`, `subjects`, `item_progress` (native SQL in `search/ItemSearchRepository`).
 
 Tables: `study_items`, `tags`, `study_item_tags`, `item_progress`; tags and progress for a page are loaded in one
 batch each.
@@ -181,6 +207,12 @@ Files are stored by `LocalMediaStorage` under `app.media.storage-dir` (`MEDIA_ST
 `./data/media`) behind the `MediaStorage` interface, so S3 can replace it later. Files are removed only
 after the database transaction commits, and a stored file is removed again if the upload transaction
 rolls back.
+
+**Unused image cleanup** (`MediaCleanupJob`, `app.media.cleanup-cron`, default daily 03:30 server time;
+`-` turns it off): deletes rows and files of images older than `app.media.cleanup-grace` (`MEDIA_CLEANUP_GRACE`,
+default 7 days) that nothing uses: no linked item, not an import's stored document, and no
+`src="/api/v1/media/{id}"` in any item, topic description or open (PENDING/EDITED) import candidate. The HTML
+check keeps images that several items share. It logs only the count.
 
 Tables: `media_files`.
 

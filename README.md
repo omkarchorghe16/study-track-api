@@ -16,7 +16,7 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | 3 | Media and rich content | **done** |
 | 4 | Progress tracking, dashboard numbers, flashcards | **done** |
 | 5 | LLM import (Anthropic, OpenAI, Ollama) with review before anything is saved | **done** |
-| 6 | Search and polish | next |
+| 6 | Search, duplicate check, unused image cleanup (UI: shortcuts, toasts, theme) | **done** |
 | 7 | Accounts and deployment | deferred |
 
 There is no login yet. Every request acts as user `1` (`app.current-user-id`), which V1 seeds. Do not
@@ -37,6 +37,8 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | PATCH | `/api/v1/topics/{id}/move` | New parent and sort order |
 | GET | `/api/v1/topics/{id}/items?status=&difficulty=&tag=&page=&size=` | One page of a topic's items with the user's status |
 | POST | `/api/v1/items` | Create an item |
+| POST | `/api/v1/items/duplicate-check` | Items of the subject with the same question (nothing is saved) |
+| GET | `/api/v1/items/search?q=&subjectId=&page=&size=` | Full-text search (PostgreSQL `tsvector`, word prefixes) with highlighted snippets |
 | GET, PUT, DELETE | `/api/v1/items/{id}` | Read (with previous/next ids), replace or delete an item |
 | POST | `/api/v1/media` | Upload an image (multipart `file`, PNG/JPEG/GIF/WebP, ≤5 MB) |
 | GET, DELETE | `/api/v1/media/{id}` | Serve or delete an image (`/info` for its details) |
@@ -87,6 +89,7 @@ open http://localhost:8083/swagger-ui.html
 | `APP_TIME_ZONE` | `America/Chicago` | Zone that decides "today" for due flashcards, streaks and the activity chart (blank = the server's zone) |
 | `MEDIA_STORAGE_DIR` | `./data/media` (`/app/data/media` in Docker) | Where uploaded images are stored (git-ignored) |
 | `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
+| `MEDIA_CLEANUP_CRON` / `MEDIA_CLEANUP_GRACE` | `0 30 3 * * *` / `P7D` | When unused images are deleted (`-` = never) and how old they must be |
 | `IMPORT_MAX_FILE_BYTES` | `20971520` | Largest document an import accepts (20 MB) |
 | `IMPORT_WORKER_THREADS` | `2` | Imports processed at the same time |
 | `LLM_PROVIDER` | `ANTHROPIC` | Default provider until a user saves settings (`ANTHROPIC`, `OPENAI`, `OLLAMA`) |
@@ -138,5 +141,7 @@ mvn test
 ```
 
 Tests run on H2 in PostgreSQL mode with `test-schema.sql`; they need no local database or network.
+H2 has no `tsvector`, so search tests cover the `LIKE` fallback; check full-text search against PostgreSQL
+(`mvn spring-boot:run`, then `GET /api/v1/items/search?q=…`) when changing `V8` or `ItemSearchRepository`.
 LLM calls use `FakeLlmClientFactory` (integration tests) and `MockRestServiceServer` (client tests), so
 `mvn test` never calls a provider.

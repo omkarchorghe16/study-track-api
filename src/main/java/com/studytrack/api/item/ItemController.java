@@ -1,5 +1,7 @@
 package com.studytrack.api.item;
 
+import com.studytrack.api.item.ItemDtos.DuplicateCheckRequest;
+import com.studytrack.api.item.ItemDtos.DuplicateItemResponse;
 import com.studytrack.api.item.ItemDtos.ItemPageResponse;
 import com.studytrack.api.item.ItemDtos.ItemRequest;
 import com.studytrack.api.item.ItemDtos.ItemResponse;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
+import java.util.List;
 
 /** Study item routes; a topic's items are listed under the topic, everything else under {@code /items}. */
 @RestController
@@ -61,6 +64,14 @@ public class ItemController {
     public ResponseEntity<ItemResponse> createItem(@Valid @RequestBody ItemRequest request) {
         ItemResponse created = itemService.createItem(request);
         return ResponseEntity.created(URI.create("/api/v1/items/" + created.id())).body(created);
+    }
+
+    @PostMapping("/items/duplicate-check")
+    @Operation(summary = "Find items with the same question",
+            description = "Items of the topic's subject whose question (or title, when there is no question) matches the one "
+                    + "being written, ignoring case, spacing and formatting. Nothing is saved.")
+    public List<DuplicateItemResponse> findDuplicateItems(@Valid @RequestBody DuplicateCheckRequest request) {
+        return itemService.findDuplicateItems(request);
     }
 
     @PutMapping("/items/{itemId}")

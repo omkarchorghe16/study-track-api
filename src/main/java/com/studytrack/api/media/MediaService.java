@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.time.Instant;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.Collection;
@@ -184,6 +185,21 @@ public class MediaService {
         }
         mediaFileRepository.deleteAll(mediaFiles);
         deleteFilesAfterCommit(mediaFiles.stream().map(MediaFileEntity::getStorageKey).toList());
+    }
+
+    /**
+     * Deletes images that nothing uses and that were created before {@code createdBefore} (all users),
+     * rows now and files once the transaction commits. Returns how many were deleted.
+     */
+    @Transactional
+    public int deleteUnusedMedia(Instant createdBefore) {
+        List<MediaFileEntity> unused = mediaFileRepository.findUnusedMedia(createdBefore);
+        if (unused.isEmpty()) {
+            return 0;
+        }
+        mediaFileRepository.deleteAll(unused);
+        deleteFilesAfterCommit(unused.stream().map(MediaFileEntity::getStorageKey).toList());
+        return unused.size();
     }
 
     private MediaFileEntity findOwnedMedia(Long mediaId) {

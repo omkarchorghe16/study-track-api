@@ -1,6 +1,8 @@
 package com.studytrack.api.item;
 
 import com.studytrack.api.content.HtmlSanitizer;
+import com.studytrack.api.item.ItemDtos.DuplicateCheckRequest;
+import com.studytrack.api.item.ItemDtos.DuplicateItemResponse;
 import com.studytrack.api.item.ItemDtos.ItemPageResponse;
 import com.studytrack.api.item.ItemDtos.ItemProgressResponse;
 import com.studytrack.api.item.ItemDtos.ItemRequest;
@@ -28,6 +30,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ItemService {
+    private static final int MAX_DUPLICATES = 5;
+
     private final StudyItemRepository studyItemRepository;
     private final TagRepository tagRepository;
     private final TopicService topicService;
@@ -91,6 +95,22 @@ public class ItemService {
         return studyItemRepository.findContentHashMatches(subjectId, contentHashes).stream()
                 .collect(Collectors.toMap(StudyItemRepository.ContentHashMatch::getContentHash,
                         StudyItemRepository.ContentHashMatch::getItemId));
+    }
+
+    /**
+     * Items of the topic's subject that have the same question as the one being written (same
+     * {@link ItemContent#computeContentHash content hash}), at most {@value #MAX_DUPLICATES}.
+     */
+    @Transactional(readOnly = true)
+    public List<DuplicateItemResponse> findDuplicateItems(DuplicateCheckRequest request) {
+        TopicEntity topic = topicService.findOwnedTopic(request.topicId());
+        String contentHash = ItemContent.computeContentHash(request.title(),
+                htmlSanitizer.sanitizeHtml(request.questionHtml()));
+        Long excludedItemId = request.itemId() == null ? -1L : request.itemId();
+        return studyItemRepository.findDuplicates(topic.getSubjectId(), contentHash, excludedItemId,
+                        PageRequest.of(0, MAX_DUPLICATES)).stream()
+                .map(row -> new DuplicateItemResponse(row.getId(), row.getTitle(), row.getTopicId(), row.getTopicName()))
+                .toList();
     }
 
     private ItemResponse createItem(ItemRequest request, StudyItemEntity item) {
