@@ -11,7 +11,7 @@ section 4 and move here as they are built.
 
 ## 1. Database overview
 
-Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V3). Hibernate runs with
+Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V4). Hibernate runs with
 `ddl-auto: validate`, so entities must match these tables exactly.
 
 | Table | Purpose | Key columns | Entity |
@@ -22,6 +22,7 @@ Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V3). Hibern
 | `study_items` | Questions, notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `item_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain` (answer text without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` (FK added in V6), `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, timestamps | `StudyItemEntity` |
 | `tags` | A user's tags | `id`, `user_id` → `users`, `name` ≤50 lower-case, UNIQUE(`user_id`,`name`) | `TagEntity` |
 | `study_item_tags` | Item ↔ tag links | PK(`item_id`,`tag_id`), both ON DELETE CASCADE | `StudyItemEntity.tags` |
+| `media_files` | Uploaded images | `id`, `user_id` → `users`, `item_id` → `study_items` ON DELETE SET NULL (null = not used by an item yet), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
 
 Every lookup checks ownership: a subject, topic or item of another user is reported as `404`.
 
@@ -39,6 +40,8 @@ Every handled error returns `ApiError`:
 | 400 | Validation failure (`details` maps field → message), malformed JSON or parameter, `IllegalArgumentException` |
 | 404 | Unknown path, or a referenced record does not exist or belongs to another user |
 | 409 | Duplicate subject name for the user (case-insensitive) |
+| 413 | Upload larger than `app.media.max-image-bytes` (5 MB) or the multipart limit (20 MB) |
+| 415 | Upload that is not a PNG, JPEG, GIF or WebP image (checked by content, not by name), or an unsupported request content type |
 | 500 | Unexpected error (logged with stack trace; the body never includes it) |
 
 ## 3. Status
@@ -134,7 +137,50 @@ Tables: `topics`; the tree is built from one query plus one grouped count over `
   `hasAnswer`, `updatedAt`), `page`, `size`, `totalItems`, `totalPages`.
 
 On every save the service sets `answer_plain` (answer text without tags, via jsoup) and `content_hash`.
-HTML is stored as sent in this phase; phase 3 sanitises it with jsoup on save. Angular sanitises it when
-rendering.
+Question, answer and notes HTML are sanitised with jsoup on every save (see section 8, Rich content), so
+the response can differ from what was sent. Images the item references are linked to it in `media_files`;
+images it no longer references are deleted with their files, as are all of its images when the item is
+deleted.
 
 Tables: `study_items`, `tags`, `study_item_tags`; tags for a page are loaded in one batch.
+
+## 8. Media
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| POST | `/api/v1/media` | `multipart/form-data`: `file` (required), `altText` (optional, cut to 500) | `201` + `Location`, `MediaResponse` |
+| GET | `/api/v1/media/{mediaId}` | | `200`, the image bytes |
+| GET | `/api/v1/media/{mediaId}/info` | | `200` `MediaResponse` |
+| DELETE | `/api/v1/media/{mediaId}` | | `204`; removes the row and the file |
+
+- Upload accepts PNG, JPEG, GIF and WebP, detected from the file's first bytes (the name and the declared
+  content type are ignored). SVG is rejected because it can carry scripts. Empty file `400`, over
+  `app.media.max-image-bytes` (default 5 MB) `413`, any other type `415`. Width and height are read from
+  the image header when possible.
+- A new upload has no item. It is linked to an item when an item saved with
+  `<img src="/api/v1/media/{id}">` in its HTML references it. Images of another user are never linked.
+- `GET /{mediaId}` sends `Cache-Control: private, max-age=31536000, immutable`, `X-Content-Type-Options:
+  nosniff` and an inline `Content-Disposition` (images never change; a new upload gets a new id).
+- `MediaResponse`: `id`, `url` (`/api/v1/media/{id}`, use it as `img src`), `originalName`, `contentType`,
+  `sizeBytes`, `width`, `height`, `altText`, `itemId` (absent until linked), `createdAt`.
+
+Files are stored by `LocalMediaStorage` under `app.media.storage-dir` (`MEDIA_STORAGE_DIR`, default
+`./data/media`) behind the `MediaStorage` interface, so S3 can replace it later. Files are removed only
+after the database transaction commits, and a stored file is removed again if the upload transaction
+rolls back.
+
+Tables: `media_files`.
+
+### Rich content
+
+`content/HtmlSanitizer` (jsoup) cleans every stored HTML field: item question, answer and notes, and topic
+descriptions.
+
+- Allowed: jsoup's relaxed safelist (paragraphs, headings, lists, tables, `b`/`i`/`u`, `blockquote`,
+  `code`, `pre`, links, images) plus `s`, `del`, `ins`, `hr`, `mark`, `figure`, `figcaption`. Kept
+  attributes: `class` on `pre`/`code`/`span`, `data-language` and `spellcheck` on `pre`, `data-list` on
+  `li` (Quill lists), `type` on `ol`.
+- Removed: scripts, styles, event handlers, `javascript:` links, and every `img` whose `src` is not
+  `/api/v1/media/{id}` (so no base64 or external images).
+- Links get `rel="noopener noreferrer nofollow"`, and `target="_blank"` when they have an `href`.
+- HTML with no visible text and no image is stored as null.

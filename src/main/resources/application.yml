@@ -16,6 +16,11 @@ spring:
     enabled: true
   jackson:
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      # Request ceiling; MediaService applies the tighter per-image limit (app.media.max-image-bytes).
+      max-file-size: 20MB
+      max-request-size: 21MB
 server:
   port: ${SERVER_PORT:8083}
 app:
@@ -23,6 +28,10 @@ app:
   current-user-id: ${APP_CURRENT_USER_ID:1}
   cors:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4201}
+  media:
+    # Uploaded images are stored here (relative paths resolve against the working directory).
+    storage-dir: ${MEDIA_STORAGE_DIR:./data/media}
+    max-image-bytes: ${MEDIA_MAX_IMAGE_BYTES:5242880}
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

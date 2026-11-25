@@ -13,8 +13,8 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 |---|---|---|
 | 1 | Scaffolding: structure, rules, health, Swagger, Docker, Flyway V1 (`users`) | **done** |
 | 2 | Subjects, topics, items (CRUD) | **done** |
-| 3 | Media and rich content | next |
-| 4 | Progress tracking, dashboard numbers, flashcards | planned |
+| 3 | Media and rich content | **done** |
+| 4 | Progress tracking, dashboard numbers, flashcards | next |
 | 5 | LLM import (Anthropic, Ollama first) | planned |
 | 6 | Search and polish | planned |
 | 7 | Accounts and deployment | deferred |
@@ -38,6 +38,8 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | GET | `/api/v1/topics/{id}/items?difficulty=&tag=&page=&size=` | One page of a topic's items |
 | POST | `/api/v1/items` | Create an item |
 | GET, PUT, DELETE | `/api/v1/items/{id}` | Read (with previous/next ids), replace or delete an item |
+| POST | `/api/v1/media` | Upload an image (multipart `file`, PNG/JPEG/GIF/WebP, ≤5 MB) |
+| GET, DELETE | `/api/v1/media/{id}` | Serve or delete an image (`/info` for its details) |
 | GET | `/actuator/health` (`/liveness`, `/readiness`) | Health probes |
 | GET | `/swagger-ui.html`, `/v3/api-docs` | Swagger UI and OpenAPI JSON |
 
@@ -70,6 +72,8 @@ open http://localhost:8083/swagger-ui.html
 | `FRONTEND_ORIGIN` | `http://localhost:4201` | Allowed CORS origin for `/api/**` |
 | `APP_CURRENT_USER_ID` | `1` | User every request acts as until login exists |
 | `APP_LOG_LEVEL` | `INFO` | Log level for `com.studytrack.api` |
+| `MEDIA_STORAGE_DIR` | `./data/media` (`/app/data/media` in Docker) | Where uploaded images are stored (git-ignored) |
+| `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
 
 ## Docker Compose
 

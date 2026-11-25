@@ -1,9 +1,11 @@
 package com.studytrack.api.item;
 
+import com.studytrack.api.content.HtmlSanitizer;
 import com.studytrack.api.item.ItemDtos.ItemPageResponse;
 import com.studytrack.api.item.ItemDtos.ItemRequest;
 import com.studytrack.api.item.ItemDtos.ItemResponse;
 import com.studytrack.api.item.ItemDtos.ItemSummaryResponse;
+import com.studytrack.api.media.MediaService;
 import com.studytrack.api.topic.TopicEntity;
 import com.studytrack.api.topic.TopicService;
 import com.studytrack.api.user.CurrentUser;
@@ -27,13 +29,18 @@ public class ItemService {
     private final StudyItemRepository studyItemRepository;
     private final TagRepository tagRepository;
     private final TopicService topicService;
+    private final MediaService mediaService;
+    private final HtmlSanitizer htmlSanitizer;
     private final CurrentUser currentUser;
 
     public ItemService(StudyItemRepository studyItemRepository, TagRepository tagRepository,
-                       TopicService topicService, CurrentUser currentUser) {
+                       TopicService topicService, MediaService mediaService, HtmlSanitizer htmlSanitizer,
+                       CurrentUser currentUser) {
         this.studyItemRepository = studyItemRepository;
         this.tagRepository = tagRepository;
         this.topicService = topicService;
+        this.mediaService = mediaService;
+        this.htmlSanitizer = htmlSanitizer;
         this.currentUser = currentUser;
     }
 
@@ -61,7 +68,9 @@ public class ItemService {
         item.setSortOrder(request.sortOrder() != null
                 ? request.sortOrder()
                 : studyItemRepository.findMaxSortOrder(topic.getId()) + 1);
-        return toResponse(studyItemRepository.save(item), topic);
+        StudyItemEntity saved = studyItemRepository.save(item);
+        linkMedia(saved);
+        return toResponse(saved, topic);
     }
 
     /** Replaces every field; changing {@code topicId} moves the item to another topic of the current user. */
@@ -76,12 +85,25 @@ public class ItemService {
         } else if (topicChanged) {
             item.setSortOrder(studyItemRepository.findMaxSortOrder(topic.getId()) + 1);
         }
-        return toResponse(studyItemRepository.saveAndFlush(item), topic);
+        StudyItemEntity saved = studyItemRepository.saveAndFlush(item);
+        linkMedia(saved);
+        return toResponse(saved, topic);
     }
 
+    /** Deletes the item and the images used in it. */
     @Transactional
     public void deleteItem(Long itemId) {
-        studyItemRepository.delete(findOwnedItem(itemId));
+        StudyItemEntity item = findOwnedItem(itemId);
+        mediaService.deleteItemMedia(item.getId());
+        studyItemRepository.delete(item);
+    }
+
+    private void linkMedia(StudyItemEntity item) {
+        Set<Long> mediaIds = new LinkedHashSet<>();
+        mediaIds.addAll(htmlSanitizer.findMediaIds(item.getQuestionHtml()));
+        mediaIds.addAll(htmlSanitizer.findMediaIds(item.getAnswerHtml()));
+        mediaIds.addAll(htmlSanitizer.findMediaIds(item.getNotesHtml()));
+        mediaService.linkItemMedia(item.getId(), mediaIds);
     }
 
     private StudyItemEntity findOwnedItem(Long itemId) {
@@ -101,15 +123,17 @@ public class ItemService {
 
     private void applyRequest(StudyItemEntity item, ItemRequest request, TopicEntity topic) {
         String title = request.title().strip();
+        String questionHtml = htmlSanitizer.sanitizeHtml(request.questionHtml());
+        String answerHtml = htmlSanitizer.sanitizeHtml(request.answerHtml());
         item.setTopicId(topic.getId());
         item.setItemType(request.itemType());
         item.setTitle(title);
-        item.setQuestionHtml(blankToNull(request.questionHtml()));
-        item.setAnswerHtml(blankToNull(request.answerHtml()));
-        item.setNotesHtml(blankToNull(request.notesHtml()));
-        item.setAnswerPlain(ItemContent.toPlainText(request.answerHtml()));
+        item.setQuestionHtml(questionHtml);
+        item.setAnswerHtml(answerHtml);
+        item.setNotesHtml(htmlSanitizer.sanitizeHtml(request.notesHtml()));
+        item.setAnswerPlain(ItemContent.toPlainText(answerHtml));
         item.setDifficulty(request.difficulty() != null ? request.difficulty() : Difficulty.MEDIUM);
-        item.setContentHash(ItemContent.computeContentHash(title, request.questionHtml()));
+        item.setContentHash(ItemContent.computeContentHash(title, questionHtml));
         item.replaceTags(resolveTags(request.tags()));
     }
 
@@ -134,13 +158,6 @@ public class ItemService {
 
     private String normalizeTag(String tag) {
         return tag.strip().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
-    }
-
-    private static String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value;
     }
 
     private static List<String> sortedTagNames(StudyItemEntity item) {
