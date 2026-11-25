@@ -34,6 +34,34 @@ app:
     # Uploaded images are stored here (relative paths resolve against the working directory).
     storage-dir: ${MEDIA_STORAGE_DIR:./data/media}
     max-image-bytes: ${MEDIA_MAX_IMAGE_BYTES:5242880}
+  import:
+    # Largest uploaded document (.docx, .pdf, .md, .txt); spring.servlet.multipart is the request ceiling.
+    max-file-bytes: ${IMPORT_MAX_FILE_BYTES:20971520}
+    # Documents are parsed and sent to the LLM on this many background threads.
+    worker-threads: ${IMPORT_WORKER_THREADS:2}
+  llm:
+    # Defaults until a user saves settings in the app (Settings page, table llm_settings).
+    provider: ${LLM_PROVIDER:ANTHROPIC}
+    # Read timeout of one LLM call; a 6,000-token chunk can take a few minutes on a large model.
+    timeout: ${LLM_TIMEOUT:PT5M}
+    max-chunk-tokens: ${LLM_MAX_CHUNK_TOKENS:6000}
+    max-chunks-per-job: ${LLM_MAX_CHUNKS_PER_JOB:200}
+    max-output-tokens: ${LLM_MAX_OUTPUT_TOKENS:16000}
+    retry-delay: ${LLM_RETRY_DELAY:PT5S}
+    anthropic:
+      base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
+      model: ${ANTHROPIC_MODEL:claude-opus-5-5}
+      # From the environment or .env only; never commit a real key.
+      api-key: ${ANTHROPIC_API_KEY:}
+      effort: ${ANTHROPIC_EFFORT:medium}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+      api-key: ${OPENAI_API_KEY:}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:llama3.1}
+      context-tokens: ${OLLAMA_CONTEXT_TOKENS:16384}
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

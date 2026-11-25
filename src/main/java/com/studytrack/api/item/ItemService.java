@@ -15,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -69,8 +70,31 @@ public class ItemService {
 
     @Transactional
     public ItemResponse createItem(ItemRequest request) {
+        return createItem(request, new StudyItemEntity(ItemSource.MANUAL));
+    }
+
+    /** Creates an item from an approved import candidate: source IMPORT, linked to the job. */
+    @Transactional
+    public ItemResponse createImportedItem(ItemRequest request, Long importJobId) {
+        return createItem(request, StudyItemEntity.fromImport(importJobId));
+    }
+
+    /**
+     * Ids of existing items in the subject with the given content hashes ({@link ItemContent#computeContentHash}),
+     * keyed by hash; used to flag duplicate import candidates.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> findItemIdsByContentHash(Long subjectId, Collection<String> contentHashes) {
+        if (contentHashes.isEmpty()) {
+            return Map.of();
+        }
+        return studyItemRepository.findContentHashMatches(subjectId, contentHashes).stream()
+                .collect(Collectors.toMap(StudyItemRepository.ContentHashMatch::getContentHash,
+                        StudyItemRepository.ContentHashMatch::getItemId));
+    }
+
+    private ItemResponse createItem(ItemRequest request, StudyItemEntity item) {
         TopicEntity topic = topicService.findOwnedTopic(request.topicId());
-        StudyItemEntity item = new StudyItemEntity(ItemSource.MANUAL);
         applyRequest(item, request, topic);
         item.setSortOrder(request.sortOrder() != null
                 ? request.sortOrder()

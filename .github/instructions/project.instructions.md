@@ -17,15 +17,19 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   `OpenApiConfiguration`) and `exception/ApiExceptionHandler` (error mapping).
 - Match `SubjectController` / `SubjectService` (CRUD) and `TopicService` (tree, ownership through the
   subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest`,
-  `MediaIntegrationTest`, `ProgressIntegrationTest` (they create
-  data through the endpoints with `support/StudyApiClient`), `HtmlSanitizerTest`, `ReviewSchedulerTest`, `StatsServiceTest`, `LoggingAspectTest`.
+  `MediaIntegrationTest`, `ProgressIntegrationTest`, `ImportIntegrationTest`, `LlmSettingsIntegrationTest`
+  (they create data through the endpoints with `support/StudyApiClient`; import tests build files with
+  `support/TestDocuments`), `HtmlSanitizerTest`, `ReviewSchedulerTest`, `StatsServiceTest`,
+  `DocumentParserTest`, `DocumentChunkerTest`, `AnthropicLlmClientTest` (provider clients with
+  `MockRestServiceServer`), `LoggingAspectTest`.
 - Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and
   `ItemService.findOwnedItem` throw `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
   through these methods, never through another feature's repository.
 - Feature dependencies point one way: `progress` uses `item`, `topic` and `subject`; `stats` uses
   `subject` and `progress`. `subject`, `topic` and `item` never import `progress`: they read progress
   numbers with their own read-only queries over `item_progress`/`topic_progress`, and `ItemStatus` lives
-  in `item`. Keep it that way to avoid circular dependencies.
+  in `item`. `importer` uses `llm`, `media`, `item`, `topic` and `subject`; `llm` uses none of them.
+  Keep it that way to avoid circular dependencies.
 - `progress/ReviewScheduler` holds the spaced-repetition rule (unit-tested in `ReviewSchedulerTest`);
   change the schedule there only. "Today" comes from `config/StudyCalendar` (`app.time-zone`), never
   from `LocalDate.now()`.
@@ -73,13 +77,27 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   Unknown paths return 404 (`NoResourceFoundException`), not 500.
 - `APP_LOG_LEVEL` sets the `com.studytrack.api` log level; container logs:
   `docker compose logs -f study-track-api`.
-- Never log study content, uploaded document text or LLM API keys.
+- Never log study content, uploaded document text, prompts, LLM answers or LLM API keys. Imports log
+  provider, model, chunk counts and token usage per job.
 
 ## Integrations
 
-- LLM providers (Anthropic, OpenAI, Ollama) arrive in Phase 5 behind the `llm.LlmClient` interface,
-  called with Spring `RestClient`; no vendor SDKs. Use `spring-boot-provider-integration`. Tests use
-  a fake client and never call a real provider.
+- LLM providers (Anthropic, OpenAI, Ollama) sit behind `llm.LlmClient` (`AnthropicLlmClient`,
+  `OpenAiLlmClient`, `OllamaLlmClient`), called with Spring `RestClient` built by `RestLlmClientFactory`
+  (bounded timeouts); no vendor SDKs. Use `spring-boot-provider-integration`. Clients translate HTTP
+  failures into `LlmException` with a short, safe message (`LlmErrors`).
+- Which provider a user imports with comes from `llm_settings` (`LlmSettingsService`), falling back to
+  `app.llm` (`LlmProperties`). API keys exist only in `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; never add a
+  key column, accept a key in a request or return one.
+- Anthropic defaults: model `claude-opus-5-5`, API version header `2026-10-21`, structured output with
+  the extraction JSON Schema, `output_config.effort` from `app.llm.anthropic.effort`, and the server-side
+  refusal fallback on the models that accept it. Check current model ids and API details before changing
+  these.
+- The extraction prompt and JSON Schema live in `importer/ExtractionPrompt` only. Imports run in
+  `ImportProcessingService` on the `importTaskExecutor` with LLM calls outside transactions; review and
+  approval are in `ImportService`. Nothing reaches `study_items` without approval.
+- Tests use `llm/FakeLlmClientFactory` (a `@Primary` test component, so every test context gets it)
+  and never call a real provider.
 
 ## Docs, API contract and deployment
 

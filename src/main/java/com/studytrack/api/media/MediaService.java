@@ -18,6 +18,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -25,6 +26,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -67,7 +69,7 @@ public class MediaService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
                         "Only PNG, JPEG, GIF and WebP images are accepted"));
 
-        String storageKey = newStorageKey(imageType);
+        String storageKey = newStorageKey(imageType.extension());
         MediaFileEntity media = new MediaFileEntity(currentUser.getUserId(), storageKey);
         media.setOriginalName(truncate(originalName(file, imageType), MAX_NAME_LENGTH));
         media.setContentType(imageType.contentType());
@@ -78,6 +80,60 @@ public class MediaService {
         storeFile(storageKey, content);
         deleteFileIfRolledBack(storageKey);
         return toResponse(mediaFileRepository.save(media));
+    }
+
+    /**
+     * Stores an image found inside an imported document for {@code userId} (the import runs in the
+     * background, outside a request). Returns empty when the bytes are not a supported image or are
+     * larger than {@code app.media.max-image-bytes}; the import then leaves that image out.
+     */
+    @Transactional
+    public Optional<Long> storeImportedImage(long userId, byte[] content, String altText) {
+        if (content.length == 0 || content.length > mediaProperties.maxImageBytes()) {
+            return Optional.empty();
+        }
+        Optional<ImageType> imageType = ImageType.detectImageType(content);
+        if (imageType.isEmpty()) {
+            return Optional.empty();
+        }
+        String storageKey = newStorageKey(imageType.get().extension());
+        MediaFileEntity media = new MediaFileEntity(userId, storageKey);
+        media.setOriginalName("imported-image." + imageType.get().extension());
+        media.setContentType(imageType.get().contentType());
+        media.setSizeBytes(content.length);
+        media.setAltText(truncate(blankToNull(altText), MAX_ALT_TEXT_LENGTH));
+        readDimensions(content, media);
+        storeFile(storageKey, content);
+        deleteFileIfRolledBack(storageKey);
+        return Optional.of(mediaFileRepository.save(media).getId());
+    }
+
+    /**
+     * Stores an uploaded document (the original file of an import) for the current user. The caller has
+     * checked its type and size; {@code extension} names the stored file.
+     */
+    @Transactional
+    public Long storeDocument(byte[] content, String originalName, String contentType, String extension) {
+        String storageKey = newStorageKey(extension);
+        MediaFileEntity media = new MediaFileEntity(currentUser.getUserId(), storageKey);
+        media.setOriginalName(truncate(originalName, MAX_NAME_LENGTH));
+        media.setContentType(contentType);
+        media.setSizeBytes(content.length);
+        storeFile(storageKey, content);
+        deleteFileIfRolledBack(storageKey);
+        return mediaFileRepository.save(media).getId();
+    }
+
+    /** Reads a stored file of {@code userId} into memory (imports read their document back this way). */
+    @Transactional(readOnly = true)
+    public byte[] readMediaBytes(long userId, Long mediaId) {
+        MediaFileEntity media = mediaFileRepository.findByIdAndUserId(mediaId, userId)
+                .orElseThrow(() -> new NoSuchElementException("Media " + mediaId + " not found"));
+        try (InputStream input = mediaStorage.openFile(media.getStorageKey())) {
+            return input.readAllBytes();
+        } catch (IOException exception) {
+            throw new UncheckedIOException("The stored file could not be read", exception);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -208,10 +264,9 @@ public class MediaService {
         }
     }
 
-    private static String newStorageKey(ImageType imageType) {
+    private static String newStorageKey(String extension) {
         YearMonth month = YearMonth.now(ZoneOffset.UTC);
-        return "%d/%02d/%s.%s".formatted(month.getYear(), month.getMonthValue(), UUID.randomUUID(),
-                imageType.extension());
+        return "%d/%02d/%s.%s".formatted(month.getYear(), month.getMonthValue(), UUID.randomUUID(), extension);
     }
 
     private static String originalName(MultipartFile file, ImageType imageType) {

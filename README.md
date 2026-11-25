@@ -15,8 +15,8 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | 2 | Subjects, topics, items (CRUD) | **done** |
 | 3 | Media and rich content | **done** |
 | 4 | Progress tracking, dashboard numbers, flashcards | **done** |
-| 5 | LLM import (Anthropic, Ollama first) | next |
-| 6 | Search and polish | planned |
+| 5 | LLM import (Anthropic, OpenAI, Ollama) with review before anything is saved | **done** |
+| 6 | Search and polish | next |
 | 7 | Accounts and deployment | deferred |
 
 There is no login yet. Every request acts as user `1` (`app.current-user-id`), which V1 seeds. Do not
@@ -46,6 +46,12 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | GET | `/api/v1/reviews/due?subjectId=` | Flashcards due today, then new items |
 | GET | `/api/v1/sessions/resume?subjectId=`, PUT `/api/v1/sessions` | Read or save where the user left off |
 | GET | `/api/v1/stats/overview` | Dashboard numbers: totals, per subject, due today, streak, 30-day activity |
+| POST, GET | `/api/v1/imports` | Start an import (multipart `file` .docx/.pdf/.md/.txt ≤20 MB + `subjectId`, `202`) or list recent ones |
+| GET | `/api/v1/imports/{id}` | Import status and progress (poll while running) |
+| GET | `/api/v1/imports/{id}/candidates`, PUT `…/candidates/{cid}` | Review and edit what the LLM found |
+| POST | `/api/v1/imports/{id}/approve`, `/reject` | Turn candidates into items (creating topics) or drop them |
+| GET, PUT | `/api/v1/settings/llm` | Provider, model, base URL for imports (keys stay in the environment) |
+| POST | `/api/v1/settings/llm/test` | Check the connection without generating text |
 | GET | `/actuator/health` (`/liveness`, `/readiness`) | Health probes |
 | GET | `/swagger-ui.html`, `/v3/api-docs` | Swagger UI and OpenAPI JSON |
 
@@ -81,6 +87,18 @@ open http://localhost:8083/swagger-ui.html
 | `APP_TIME_ZONE` | `America/Chicago` | Zone that decides "today" for due flashcards, streaks and the activity chart (blank = the server's zone) |
 | `MEDIA_STORAGE_DIR` | `./data/media` (`/app/data/media` in Docker) | Where uploaded images are stored (git-ignored) |
 | `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
+| `IMPORT_MAX_FILE_BYTES` | `20971520` | Largest document an import accepts (20 MB) |
+| `IMPORT_WORKER_THREADS` | `2` | Imports processed at the same time |
+| `LLM_PROVIDER` | `ANTHROPIC` | Default provider until a user saves settings (`ANTHROPIC`, `OPENAI`, `OLLAMA`) |
+| `ANTHROPIC_API_KEY` | (none) | Claude API key. **Environment or `.env` only; never commit it.** |
+| `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | Default Claude model and `output_config.effort` |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | (none) / `gpt-4o-mini` | OpenAI key and default model |
+| `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `llama3.1` | Local Ollama server and default model |
+| `LLM_TIMEOUT` | `PT5M` | Read timeout of one LLM call |
+| `LLM_MAX_CHUNK_TOKENS` / `LLM_MAX_CHUNKS_PER_JOB` | `6000` / `200` | Chunk size and the most LLM calls one import may make |
+
+Imports log the provider, model and token counts per job. Document text, prompts, LLM answers and API
+keys are never logged.
 
 ## Docker Compose
 
@@ -120,3 +138,5 @@ mvn test
 ```
 
 Tests run on H2 in PostgreSQL mode with `test-schema.sql`; they need no local database or network.
+LLM calls use `FakeLlmClientFactory` (integration tests) and `MockRestServiceServer` (client tests), so
+`mvn test` never calls a provider.

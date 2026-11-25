@@ -71,4 +71,19 @@ public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long
 
     @Query("select coalesce(max(i.sortOrder), -1) from StudyItemEntity i where i.topicId = :topicId")
     int findMaxSortOrder(Long topicId);
+
+    /** Items of the subject whose content hash is one of {@code contentHashes}, as (hash, item id) rows. */
+    @Query("""
+            select i.contentHash as contentHash, min(i.id) as itemId from StudyItemEntity i
+            where i.contentHash in :contentHashes
+              and i.topicId in (select t.id from TopicEntity t where t.subjectId = :subjectId)
+            group by i.contentHash
+            """)
+    List<ContentHashMatch> findContentHashMatches(Long subjectId, Collection<String> contentHashes);
+
+    interface ContentHashMatch {
+        String getContentHash();
+
+        Long getItemId();
+    }
 }

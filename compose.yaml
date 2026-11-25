@@ -22,5 +22,12 @@ services:
       APP_TIME_ZONE: ${APP_TIME_ZONE:-America/Chicago}
       MEDIA_STORAGE_DIR: /app/data/media
       MEDIA_MAX_IMAGE_BYTES: ${MEDIA_MAX_IMAGE_BYTES:-5242880}
+      IMPORT_MAX_FILE_BYTES: ${IMPORT_MAX_FILE_BYTES:-20971520}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ANTHROPIC}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
     volumes:
       - ${MEDIA_HOST_DIR:-./data/media}:/app/data/media

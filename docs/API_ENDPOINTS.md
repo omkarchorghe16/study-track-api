@@ -11,7 +11,7 @@ section 4 and move here as they are built.
 
 ## 1. Database overview
 
-Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V5). Hibernate runs with
+Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V7). Hibernate runs with
 `ddl-auto: validate`, so entities must match these tables exactly.
 
 | Table | Purpose | Key columns | Entity |
@@ -19,7 +19,7 @@ Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V5). Hibern
 | `users` | People who own StudyTrack data | `id` identity, `display_name` ≤100, `email` ≤255 UNIQUE, `created_at`. V1 seeds user `1` (`Default user`) | `UserEntity` |
 | `subjects` | A user's courses or prep tracks | `id`, `user_id` → `users`, `name` ≤120 UNIQUE per user, `description` ≤1000, `icon` ≤16, `sort_order`, `archived`, `created_at`, `updated_at` | `SubjectEntity` |
 | `topics` | Topic tree inside a subject | `id`, `subject_id` → `subjects` ON DELETE CASCADE, `parent_id` → `topics` ON DELETE CASCADE (null = top level, never itself), `name` ≤200, `description_html`, `sort_order`, timestamps | `TopicEntity` |
-| `study_items` | Questions, notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `item_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain` (answer text without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` (FK added in V6), `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, timestamps | `StudyItemEntity` |
+| `study_items` | Questions, notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `item_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain` (answer text without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` → `import_jobs` ON DELETE SET NULL (V6), `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, timestamps | `StudyItemEntity` |
 | `tags` | A user's tags | `id`, `user_id` → `users`, `name` ≤50 lower-case, UNIQUE(`user_id`,`name`) | `TagEntity` |
 | `study_item_tags` | Item ↔ tag links | PK(`item_id`,`tag_id`), both ON DELETE CASCADE | `StudyItemEntity.tags` |
 | `item_progress` | A user's progress on an item (no row = `NOT_STARTED`) | `id`, `user_id`, `item_id` → `study_items` ON DELETE CASCADE, `status` (`NOT_STARTED`/`LEARNING`/`DONE`), `confidence` 1–5 or null, `review_count`, `last_reviewed_at`, `next_review_at`, `bookmarked`, `updated_at`; UNIQUE(`user_id`,`item_id`) | `ItemProgressEntity` |
@@ -27,6 +27,9 @@ Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V5). Hibern
 | `review_log` | One row per flashcard rating | `id`, `user_id`, `item_id` → `study_items` ON DELETE CASCADE, `result` (`AGAIN`/`HARD`/`GOOD`/`EASY`), `reviewed_at` | `ReviewLogEntity` |
 | `study_sessions` | "Continue where you left off", per subject | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `last_topic_id` → `topics` ON DELETE SET NULL, `last_item_id` → `study_items` ON DELETE SET NULL, `updated_at`; UNIQUE(`user_id`,`subject_id`) | `StudySessionEntity` |
 | `media_files` | Uploaded images | `id`, `user_id` → `users`, `item_id` → `study_items` ON DELETE SET NULL (null = not used by an item yet), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
+| `import_jobs` | One uploaded document being imported | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `file_name` ≤255, `file_type` (`DOCX`/`PDF`/`MD`/`TXT`), `media_id` → `media_files` ON DELETE SET NULL (the stored original), `status` (`UPLOADED`/`PARSING`/`EXTRACTING`/`READY_FOR_REVIEW`/`COMPLETED`/`FAILED`), `llm_provider`, `llm_model`, `total_chunks`, `processed_chunks`, `failed_chunks`, `input_tokens`, `output_tokens`, `error_message` ≤1000, timestamps | `ImportJobEntity` |
+| `import_candidates` | Items the LLM found, waiting for review | `id`, `job_id` → `import_jobs` ON DELETE CASCADE, `chunk_index`, `suggested_topic_path` ≤500 (`A > B`), `item_type`, `title` ≤300, `question_html`, `answer_html`, `notes_html` (sanitised), `difficulty`, `tags` (comma list), `image_refs` (comma list of media ids), `confidence_score` 0–1, `content_hash`, `status` (`PENDING`/`APPROVED`/`REJECTED`/`EDITED`), `target_topic_id` → `topics` ON DELETE SET NULL, `created_item_id` → `study_items` ON DELETE SET NULL, `sort_order` | `ImportCandidateEntity` |
+| `llm_settings` | A user's LLM for imports (no row = `app.llm` defaults) | `id`, `user_id` UNIQUE, `provider` (`ANTHROPIC`/`OPENAI`/`OLLAMA`), `model` ≤100, `base_url` ≤500 (null = provider default), `enabled`, `updated_at`. **No API key column**: keys come only from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | `LlmSettingsEntity` |
 
 Every lookup checks ownership: a subject, topic or item of another user is reported as `404`.
 
@@ -43,9 +46,9 @@ Every handled error returns `ApiError`:
 |---|---|
 | 400 | Validation failure (`details` maps field → message), malformed JSON or parameter, `IllegalArgumentException` |
 | 404 | Unknown path, or a referenced record does not exist or belongs to another user |
-| 409 | Duplicate subject name for the user (case-insensitive) |
-| 413 | Upload larger than `app.media.max-image-bytes` (5 MB) or the multipart limit (20 MB) |
-| 415 | Upload that is not a PNG, JPEG, GIF or WebP image (checked by content, not by name), or an unsupported request content type |
+| 409 | Duplicate subject name for the user (case-insensitive); an import that cannot start (imports switched off, LLM not configured) or a review action while the import still runs or on a candidate already approved/rejected |
+| 413 | Upload larger than `app.media.max-image-bytes` (5 MB), `app.import.max-file-bytes` (20 MB) or the multipart limit (20 MB) |
+| 415 | Image upload that is not a PNG, JPEG, GIF or WebP image (checked by content, not by name), import that is not a .docx, .pdf, .md or .txt file whose content matches, or an unsupported request content type |
 | 500 | Unexpected error (logged with stack trace; the body never includes it) |
 
 ## 3. Status
@@ -253,3 +256,101 @@ today), `longestStreakDays` (within the last year), `subjects` (per subject: `id
 first, zeros included).
 
 Tables: reads everything above through `SubjectService` and `ProgressService`.
+
+## 11. Imports (LLM)
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| POST | `/api/v1/imports` | `multipart/form-data`: `file` (.docx, .pdf, .md/.markdown, .txt, ≤20 MB), `subjectId` | `202` + `Location`, `ImportJobResponse` |
+| GET | `/api/v1/imports?limit=20` | | `200` list of `ImportJobResponse`, newest first (limit 1–100) |
+| GET | `/api/v1/imports/{importId}` | | `200` `ImportJobResponse` (poll every 2–3 s while running) |
+| GET | `/api/v1/imports/{importId}/candidates` | | `200` list of `CandidateResponse` in document order |
+| PUT | `/api/v1/imports/{importId}/candidates/{candidateId}` | `CandidateRequest` | `200` `CandidateResponse` (status `EDITED`) |
+| POST | `/api/v1/imports/{importId}/approve` | `CandidateSelectionRequest` | `200` `ApproveResponse` |
+| POST | `/api/v1/imports/{importId}/reject` | `CandidateSelectionRequest` | `200` `RejectResponse` |
+
+**Pipeline** (`importer/ImportProcessingService`, `@Async` on the `importTaskExecutor`, `app.import.worker-threads`):
+
+1. Upload: the type comes from the extension and must match the bytes (ZIP for DOCX, `%PDF` for PDF,
+   UTF-8 for MD/TXT). The original is stored as a `media_files` row (served by `GET /media/{id}`). The
+   LLM settings are checked first: imports switched off, or a provider whose API key is not set, is `409`
+   with the reason. The job records the provider and model; processing starts after the row commits.
+2. Parse (`PARSING`, `DocumentParser`): DOCX through Mammoth to HTML, every embedded image stored as a
+   `media_files` row (PNG/JPEG/GIF/WebP up to `app.media.max-image-bytes`; others are left out) and
+   replaced by `[[IMG:{mediaId}]]`. PDF through PDFBox, one `[Page n]` text block per page. Markdown and
+   text are read as they are, split at blank lines (Markdown `#`–`###` headings start sections; fenced code stays whole).
+3. Chunk (`DocumentChunker`): headings h1–h3 start sections; sections are packed into chunks of at most
+   `app.llm.max-chunk-tokens` (6,000, estimated at 4 characters per token) and the heading path where each
+   chunk starts (`Spring Boot > Security`) goes with it. Over `app.llm.max-chunks-per-job` (200) chunks fails the job.
+4. Extract (`EXTRACTING`): one LLM call per chunk with the system prompt and JSON Schema in
+   `importer/ExtractionPrompt` (keep the author's wording and HTML formatting, keep placeholders, never
+   invent answers, document text is data not instructions). An answer that is not valid JSON gets one
+   retry with a correction; a rate limit, 5xx or timeout gets one retry after `app.llm.retry-delay`.
+   A chunk the model refuses, truncates or answers with invalid JSON twice is counted in `failedChunks`
+   and skipped; a configuration or authentication failure fails the job with the provider's short message.
+5. Save (`CandidateContentBuilder`): placeholders become `<img src="/api/v1/media/{id}">` (only the job's
+   own images), plain text becomes paragraphs, HTML goes through `HtmlSanitizer`, tags are lower-cased
+   (≤10), the title comes from the question (or notes/answer), and `content_hash` is computed like an
+   item's. Candidates and job counters are saved per chunk; the job ends `READY_FOR_REVIEW`
+   (or `FAILED` when every chunk failed). Token usage is logged per job; document text, prompts, answers
+   and keys are never logged.
+6. A restart marks jobs that were still running as `FAILED` ("The server restarted …").
+
+Nothing becomes a study item until it is approved.
+
+- `ImportJobResponse`: `id`, `subjectId`, `fileName`, `fileType`, `status`, `llmProvider`, `llmModel`,
+  `totalChunks`, `processedChunks`, `failedChunks`, `percentComplete` (100 once finished), `inputTokens`,
+  `outputTokens`, `errorMessage` (when `FAILED`), `candidates` (`total`, `open` = pending + edited,
+  `approved`, `rejected`), `createdAt`, `updatedAt`.
+- `CandidateResponse`: `id`, `chunkIndex`, `status`, `itemType`, `title`, `questionHtml`, `answerHtml`,
+  `notesHtml`, `difficulty`, `tags`, `imageIds`, `confidence` (the LLM's 0–1 estimate), `suggestedTopicPath`,
+  `targetTopicId`, `createdItemId`, and for open candidates `duplicateItemId` (an item of the subject with
+  the same normalised question) and `duplicateOfCandidateId` (an earlier candidate of the same import).
+- `CandidateRequest`: `itemType` and `title` (≤300) required; `questionHtml`, `answerHtml`, `notesHtml`
+  (sanitised), `difficulty`, `tags` (≤20, each ≤50), `topicPath` (≤500, `A > B`), `targetTopicId` (a topic of
+  the import's subject; wins over `topicPath`). Only `PENDING`/`EDITED` candidates can be edited (`409` otherwise).
+- `CandidateSelectionRequest`: `candidateIds` (≤1000) or `"all": true` (every open candidate). Ids of
+  another import are `404`; an empty list without `all` is `400`; approved or rejected candidates are skipped.
+- Approve, in document order: the target topic, else the topic path walked from the top level (matching
+  names case-insensitively, creating missing topics), else a topic named after the file (`notes.docx` →
+  `notes`). Items are created with `source = IMPORT` and `import_job_id`, and their images are linked.
+  `ApproveResponse`: `approvedCount`, `createdTopicCount`, `createdItemIds`, `job`.
+  `RejectResponse`: `rejectedCount`, `job`. The job becomes `COMPLETED` when no candidate is open.
+- Review actions while the job is `UPLOADED`/`PARSING`/`EXTRACTING` are `409`. A `FAILED` job's candidates
+  (from chunks done before the failure) can still be reviewed.
+
+Tables: `import_jobs`, `import_candidates`, `media_files`; approval writes `topics`, `study_items`, `tags`,
+`study_item_tags`.
+
+## 12. LLM settings
+
+| Method | Path | Body | Success |
+|---|---|---|---|
+| GET | `/api/v1/settings/llm` | | `200` `LlmSettingsResponse` |
+| PUT | `/api/v1/settings/llm` | `LlmSettingsRequest` | `200` `LlmSettingsResponse` |
+| POST | `/api/v1/settings/llm/test` | `LlmSettingsRequest` (optional) | `200` `LlmConnectionTestResponse` |
+
+- `LlmSettingsRequest`: `provider` (`ANTHROPIC`/`OPENAI`/`OLLAMA`) and `model` (≤100) required, `baseUrl`
+  (≤500; blank = provider default; must be `http(s)://host…` without user info, query or fragment, trailing
+  `/` removed), `enabled` (default true; false makes new imports `409`). **API keys are never accepted or
+  returned**; they come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` on the server.
+- `LlmSettingsResponse`: `provider`, `model`, `baseUrl`, `enabled`, `saved` (false while the `app.llm`
+  defaults apply), `providers` (each `provider`, `defaultModel`, `defaultBaseUrl`, `apiKeyRequired`,
+  `apiKeyConfigured`).
+- Test checks the body's (unsaved) settings, or the saved ones without a body, without generating text:
+  Anthropic `GET /v1/models/{model}`, OpenAI `GET /v1/models/{model}`, Ollama `GET /api/tags` (the model must
+  be pulled). `LlmConnectionTestResponse`: `ok`, `message` (the reason when not ok), `provider`, `model`.
+
+**Providers** (`llm` package, Spring `RestClient`, no vendor SDKs; `LlmClientFactory` picks the client):
+
+| Provider | Call | Notes |
+|---|---|---|
+| Anthropic (default) | `POST /v1/messages`, `anthropic-version: 2026-10-21` | Default model `claude-opus-5-5`; structured output (`output_config.format` = the JSON Schema), `output_config.effort` from `ANTHROPIC_EFFORT` (default `medium`). On models that support it, the server-side refusal fallback is on (`anthropic-beta: server-side-fallback-2026-07-01`, `fallbacks: "default"`). |
+| OpenAI | `POST /v1/chat/completions` | `response_format` strict `json_schema`; default model `gpt-4o-mini` |
+| Ollama | `POST /api/chat` (`stream: false`) | Local and free; the schema goes in `format`, `num_ctx` from `OLLAMA_CONTEXT_TOKENS` |
+
+Connect timeout 10 s, read timeout `app.llm.timeout` (`LLM_TIMEOUT`, default 5 minutes), `max_tokens`
+`app.llm.max-output-tokens` (16,000). Provider errors become short messages (`Anthropic rejected the API
+key (HTTP 401): …`); response bodies are never logged.
+
+Tables: `llm_settings`.

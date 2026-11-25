@@ -9,12 +9,12 @@ import java.util.HexFormat;
 import java.util.Locale;
 
 /** Derived columns of a study item: plain-text answer and duplicate-detection hash. */
-final class ItemContent {
+public final class ItemContent {
     private ItemContent() {
     }
 
     /** Visible text of the HTML with tags removed and whitespace collapsed; null when there is none. */
-    static String toPlainText(String html) {
+    public static String toPlainText(String html) {
         if (html == null || html.isBlank()) {
             return null;
         }
@@ -26,7 +26,7 @@ final class ItemContent {
      * SHA-256 (hex) of the question text, or the title when there is no question, lower-cased with
      * whitespace collapsed, so the same question typed with different formatting gets the same hash.
      */
-    static String computeContentHash(String title, String questionHtml) {
+    public static String computeContentHash(String title, String questionHtml) {
         String questionText = toPlainText(questionHtml);
         String source = questionText != null ? questionText : title;
         String normalized = source.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").strip();
