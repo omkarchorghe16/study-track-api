@@ -14,8 +14,8 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | 1 | Scaffolding: structure, rules, health, Swagger, Docker, Flyway V1 (`users`) | **done** |
 | 2 | Subjects, topics, items (CRUD) | **done** |
 | 3 | Media and rich content | **done** |
-| 4 | Progress tracking, dashboard numbers, flashcards | next |
-| 5 | LLM import (Anthropic, Ollama first) | planned |
+| 4 | Progress tracking, dashboard numbers, flashcards | **done** |
+| 5 | LLM import (Anthropic, Ollama first) | next |
 | 6 | Search and polish | planned |
 | 7 | Accounts and deployment | deferred |
 
@@ -35,11 +35,17 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | POST | `/api/v1/topics` | Create a topic (top level or under a parent) |
 | GET, PUT, DELETE | `/api/v1/topics/{id}` | Read, replace or delete a topic (delete cascades to subtopics and items) |
 | PATCH | `/api/v1/topics/{id}/move` | New parent and sort order |
-| GET | `/api/v1/topics/{id}/items?difficulty=&tag=&page=&size=` | One page of a topic's items |
+| GET | `/api/v1/topics/{id}/items?status=&difficulty=&tag=&page=&size=` | One page of a topic's items with the user's status |
 | POST | `/api/v1/items` | Create an item |
 | GET, PUT, DELETE | `/api/v1/items/{id}` | Read (with previous/next ids), replace or delete an item |
 | POST | `/api/v1/media` | Upload an image (multipart `file`, PNG/JPEG/GIF/WebP, ≤5 MB) |
 | GET, DELETE | `/api/v1/media/{id}` | Serve or delete an image (`/info` for its details) |
+| PATCH | `/api/v1/items/{id}/progress` | Status (not started, learning, done), confidence, bookmark |
+| POST, DELETE | `/api/v1/topics/{id}/complete` | Mark or unmark a topic complete |
+| POST | `/api/v1/reviews` | Log a flashcard result; the server schedules the next review |
+| GET | `/api/v1/reviews/due?subjectId=` | Flashcards due today, then new items |
+| GET | `/api/v1/sessions/resume?subjectId=`, PUT `/api/v1/sessions` | Read or save where the user left off |
+| GET | `/api/v1/stats/overview` | Dashboard numbers: totals, per subject, due today, streak, 30-day activity |
 | GET | `/actuator/health` (`/liveness`, `/readiness`) | Health probes |
 | GET | `/swagger-ui.html`, `/v3/api-docs` | Swagger UI and OpenAPI JSON |
 
@@ -72,6 +78,7 @@ open http://localhost:8083/swagger-ui.html
 | `FRONTEND_ORIGIN` | `http://localhost:4201` | Allowed CORS origin for `/api/**` |
 | `APP_CURRENT_USER_ID` | `1` | User every request acts as until login exists |
 | `APP_LOG_LEVEL` | `INFO` | Log level for `com.studytrack.api` |
+| `APP_TIME_ZONE` | `America/Chicago` | Zone that decides "today" for due flashcards, streaks and the activity chart (blank = the server's zone) |
 | `MEDIA_STORAGE_DIR` | `./data/media` (`/app/data/media` in Docker) | Where uploaded images are stored (git-ignored) |
 | `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
 

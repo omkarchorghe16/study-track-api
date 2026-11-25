@@ -22,7 +22,10 @@ public final class SubjectDtos {
             Boolean archived) {
     }
 
-    /** Progress percentages are added with progress tracking (phase 4). */
+    /**
+     * A subject with the current user's progress. {@code percentDone} is DONE items / all items, rounded
+     * down (0 when there are no items); {@code completedTopicCount} counts topics marked complete.
+     */
     public record SubjectResponse(
             Long id,
             String name,
@@ -31,7 +34,11 @@ public final class SubjectDtos {
             int sortOrder,
             boolean archived,
             long topicCount,
+            long completedTopicCount,
             long itemCount,
+            long doneItemCount,
+            long learningItemCount,
+            int percentDone,
             Instant createdAt,
             Instant updatedAt) {
     }

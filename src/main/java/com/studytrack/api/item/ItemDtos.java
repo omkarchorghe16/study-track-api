@@ -45,8 +45,25 @@ public final class ItemDtos {
             int sortOrder,
             Long previousItemId,
             Long nextItemId,
+            ItemProgressResponse progress,
             Instant createdAt,
             Instant updatedAt) {
+    }
+
+    /**
+     * The current user's progress on one item. Items never touched are NOT_STARTED with no reviews.
+     * {@code confidence} is 1-5 or absent; {@code nextReviewAt} is absent until the first flashcard review.
+     */
+    public record ItemProgressResponse(
+            ItemStatus status,
+            Integer confidence,
+            boolean bookmarked,
+            int reviewCount,
+            Instant lastReviewedAt,
+            Instant nextReviewAt) {
+
+        public static final ItemProgressResponse NOT_STARTED =
+                new ItemProgressResponse(ItemStatus.NOT_STARTED, null, false, 0, null, null);
     }
 
     public record ItemSummaryResponse(
@@ -58,6 +75,8 @@ public final class ItemDtos {
             List<String> tags,
             int sortOrder,
             boolean hasAnswer,
+            ItemStatus status,
+            boolean bookmarked,
             Instant updatedAt) {
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,18 +30,8 @@ public class SubjectService {
         if (subjects.isEmpty()) {
             return List.of();
         }
-        List<Long> subjectIds = subjects.stream().map(SubjectEntity::getId).toList();
-        Map<Long, Long> topicCountsBySubject = subjectRepository.countTopicsBySubject(subjectIds).stream()
-                .collect(Collectors.toMap(SubjectRepository.SubjectCount::getSubjectId,
-                        SubjectRepository.SubjectCount::getTopicCount));
-        Map<Long, Long> itemCountsBySubject = subjectRepository.countItemsBySubject(subjectIds).stream()
-                .collect(Collectors.toMap(SubjectRepository.SubjectItemCount::getSubjectId,
-                        SubjectRepository.SubjectItemCount::getItemCount));
-        return subjects.stream()
-                .map(subject -> toResponse(subject,
-                        topicCountsBySubject.getOrDefault(subject.getId(), 0L),
-                        itemCountsBySubject.getOrDefault(subject.getId(), 0L)))
-                .toList();
+        SubjectCounts counts = readCounts(subjects.stream().map(SubjectEntity::getId).toList());
+        return subjects.stream().map(subject -> toResponse(subject, counts)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -60,7 +51,8 @@ public class SubjectService {
         subject.setSortOrder(request.sortOrder() != null
                 ? request.sortOrder()
                 : subjectRepository.findMaxSortOrder(userId) + 1);
-        return toResponse(subjectRepository.save(subject), 0, 0);
+        SubjectEntity saved = subjectRepository.save(subject);
+        return toResponse(saved, SubjectCounts.EMPTY);
     }
 
     @Transactional
@@ -109,17 +101,46 @@ public class SubjectService {
     }
 
     private SubjectResponse toResponseWithCounts(SubjectEntity subject) {
-        List<Long> subjectIds = List.of(subject.getId());
-        long topicCount = subjectRepository.countTopicsBySubject(subjectIds).stream()
-                .mapToLong(SubjectRepository.SubjectCount::getTopicCount).sum();
-        long itemCount = subjectRepository.countItemsBySubject(subjectIds).stream()
-                .mapToLong(SubjectRepository.SubjectItemCount::getItemCount).sum();
-        return toResponse(subject, topicCount, itemCount);
+        return toResponse(subject, readCounts(List.of(subject.getId())));
     }
 
-    private SubjectResponse toResponse(SubjectEntity subject, long topicCount, long itemCount) {
-        return new SubjectResponse(subject.getId(), subject.getName(), subject.getDescription(), subject.getIcon(),
-                subject.getSortOrder(), subject.isArchived(), topicCount, itemCount,
-                subject.getCreatedAt(), subject.getUpdatedAt());
+    private SubjectCounts readCounts(List<Long> subjectIds) {
+        long userId = currentUser.getUserId();
+        Map<Long, Long> topicCounts = subjectRepository.countTopicsBySubject(subjectIds).stream()
+                .collect(Collectors.toMap(SubjectRepository.SubjectCount::getSubjectId,
+                        SubjectRepository.SubjectCount::getTopicCount));
+        Map<Long, Long> completedTopicCounts = subjectRepository.countCompletedTopicsBySubject(subjectIds, userId)
+                .stream()
+                .collect(Collectors.toMap(SubjectRepository.SubjectCount::getSubjectId,
+                        SubjectRepository.SubjectCount::getTopicCount));
+        Map<Long, SubjectRepository.SubjectItemCount> itemCounts =
+                subjectRepository.countItemsBySubject(subjectIds, userId).stream()
+                        .collect(Collectors.toMap(SubjectRepository.SubjectItemCount::getSubjectId, Function.identity()));
+        return new SubjectCounts(topicCounts, completedTopicCounts, itemCounts);
+    }
+
+    private SubjectResponse toResponse(SubjectEntity subject, SubjectCounts counts) {
+        Long subjectId = subject.getId();
+        SubjectRepository.SubjectItemCount items = counts.itemCounts().get(subjectId);
+        long itemCount = items == null ? 0 : items.getItemCount();
+        long doneCount = items == null ? 0 : items.getDoneCount();
+        long learningCount = items == null ? 0 : items.getLearningCount();
+        return new SubjectResponse(subjectId, subject.getName(), subject.getDescription(), subject.getIcon(),
+                subject.getSortOrder(), subject.isArchived(), counts.topicCounts().getOrDefault(subjectId, 0L),
+                counts.completedTopicCounts().getOrDefault(subjectId, 0L), itemCount, doneCount, learningCount,
+                percentOf(doneCount, itemCount), subject.getCreatedAt(), subject.getUpdatedAt());
+    }
+
+    /** Whole percent, rounded down so 100 means every item is done. */
+    public static int percentOf(long part, long total) {
+        if (total <= 0) {
+            return 0;
+        }
+        return (int) (part * 100 / total);
+    }
+
+    private record SubjectCounts(Map<Long, Long> topicCounts, Map<Long, Long> completedTopicCounts,
+                                 Map<Long, SubjectRepository.SubjectItemCount> itemCounts) {
+        static final SubjectCounts EMPTY = new SubjectCounts(Map.of(), Map.of(), Map.of());
     }
 }

@@ -2,6 +2,7 @@ package com.studytrack.api.item;
 
 import com.studytrack.api.content.HtmlSanitizer;
 import com.studytrack.api.item.ItemDtos.ItemPageResponse;
+import com.studytrack.api.item.ItemDtos.ItemProgressResponse;
 import com.studytrack.api.item.ItemDtos.ItemRequest;
 import com.studytrack.api.item.ItemDtos.ItemResponse;
 import com.studytrack.api.item.ItemDtos.ItemSummaryResponse;
@@ -45,12 +46,18 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public ItemPageResponse listTopicItems(Long topicId, Difficulty difficulty, String tag, int page, int size) {
+    public ItemPageResponse listTopicItems(Long topicId, Difficulty difficulty, String tag, ItemStatus status,
+                                          int page, int size) {
         TopicEntity topic = topicService.findOwnedTopic(topicId);
         String tagName = tag == null || tag.isBlank() ? null : normalizeTag(tag);
-        Page<StudyItemEntity> items = studyItemRepository.findTopicItems(topic.getId(), difficulty, tagName,
-                PageRequest.of(page, size));
-        List<ItemSummaryResponse> summaries = items.getContent().stream().map(this::toSummary).toList();
+        long userId = currentUser.getUserId();
+        Page<StudyItemEntity> items = studyItemRepository.findTopicItems(topic.getId(), difficulty, tagName, status,
+                status == ItemStatus.NOT_STARTED, userId, PageRequest.of(page, size));
+        Map<Long, ItemProgressResponse> progressByItem = findProgress(
+                items.getContent().stream().map(StudyItemEntity::getId).toList());
+        List<ItemSummaryResponse> summaries = items.getContent().stream()
+                .map(item -> toSummary(item, progressByItem.getOrDefault(item.getId(), ItemProgressResponse.NOT_STARTED)))
+                .toList();
         return new ItemPageResponse(summaries, page, size, items.getTotalElements(), items.getTotalPages());
     }
 
@@ -106,7 +113,9 @@ public class ItemService {
         mediaService.linkItemMedia(item.getId(), mediaIds);
     }
 
-    private StudyItemEntity findOwnedItem(Long itemId) {
+    /** Returns the item if its topic belongs to the current user; other users' items are reported as missing. */
+    @Transactional(readOnly = true)
+    public StudyItemEntity findOwnedItem(Long itemId) {
         StudyItemEntity item = studyItemRepository.findById(itemId)
                 .orElseThrow(() -> itemNotFound(itemId));
         try {
@@ -164,10 +173,25 @@ public class ItemService {
         return item.getTags().stream().map(TagEntity::getName).sorted().toList();
     }
 
-    private ItemSummaryResponse toSummary(StudyItemEntity item) {
+    private Map<Long, ItemProgressResponse> findProgress(List<Long> itemIds) {
+        if (itemIds.isEmpty()) {
+            return Map.of();
+        }
+        return studyItemRepository.findItemProgress(currentUser.getUserId(), itemIds).stream()
+                .collect(Collectors.toMap(StudyItemRepository.ItemProgressRow::getItemId, ItemService::toProgress));
+    }
+
+    private static ItemProgressResponse toProgress(StudyItemRepository.ItemProgressRow row) {
+        Integer confidence = row.getConfidence() == null ? null : row.getConfidence().intValue();
+        return new ItemProgressResponse(row.getStatus(), confidence, row.isBookmarked(), row.getReviewCount(),
+                row.getLastReviewedAt(), row.getNextReviewAt());
+    }
+
+    private ItemSummaryResponse toSummary(StudyItemEntity item, ItemProgressResponse progress) {
+        boolean hasAnswer = item.getAnswerPlain() != null || item.getAnswerHtml() != null;
         return new ItemSummaryResponse(item.getId(), item.getTopicId(), item.getItemType(), item.getTitle(),
-                item.getDifficulty(), sortedTagNames(item), item.getSortOrder(), item.getAnswerPlain() != null
-                || item.getAnswerHtml() != null, item.getUpdatedAt());
+                item.getDifficulty(), sortedTagNames(item), item.getSortOrder(), hasAnswer, progress.status(),
+                progress.bookmarked(), item.getUpdatedAt());
     }
 
     private ItemResponse toResponse(StudyItemEntity item, TopicEntity topic) {
@@ -175,9 +199,11 @@ public class ItemService {
         int position = itemIds.indexOf(item.getId());
         Long previousItemId = position > 0 ? itemIds.get(position - 1) : null;
         Long nextItemId = position >= 0 && position < itemIds.size() - 1 ? itemIds.get(position + 1) : null;
+        ItemProgressResponse progress = findProgress(List.of(item.getId()))
+                .getOrDefault(item.getId(), ItemProgressResponse.NOT_STARTED);
         return new ItemResponse(item.getId(), topic.getId(), topic.getSubjectId(), item.getItemType(),
                 item.getTitle(), item.getQuestionHtml(), item.getAnswerHtml(), item.getNotesHtml(),
                 item.getDifficulty(), item.getSource(), sortedTagNames(item), item.getSortOrder(),
-                previousItemId, nextItemId, item.getCreatedAt(), item.getUpdatedAt());
+                previousItemId, nextItemId, progress, item.getCreatedAt(), item.getUpdatedAt());
     }
 }

@@ -16,11 +16,19 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
   `OpenApiConfiguration`) and `exception/ApiExceptionHandler` (error mapping).
 - Match `SubjectController` / `SubjectService` (CRUD) and `TopicService` (tree, ownership through the
-  subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest`, `MediaIntegrationTest` (they create
-  data through the endpoints with `support/StudyApiClient`), `HtmlSanitizerTest`, `LoggingAspectTest`.
-- Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and `ItemService` throw
-  `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
+  subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest`,
+  `MediaIntegrationTest`, `ProgressIntegrationTest` (they create
+  data through the endpoints with `support/StudyApiClient`), `HtmlSanitizerTest`, `ReviewSchedulerTest`, `StatsServiceTest`, `LoggingAspectTest`.
+- Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and
+  `ItemService.findOwnedItem` throw `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
   through these methods, never through another feature's repository.
+- Feature dependencies point one way: `progress` uses `item`, `topic` and `subject`; `stats` uses
+  `subject` and `progress`. `subject`, `topic` and `item` never import `progress`: they read progress
+  numbers with their own read-only queries over `item_progress`/`topic_progress`, and `ItemStatus` lives
+  in `item`. Keep it that way to avoid circular dependencies.
+- `progress/ReviewScheduler` holds the spaced-repetition rule (unit-tested in `ReviewSchedulerTest`);
+  change the schedule there only. "Today" comes from `config/StudyCalendar` (`app.time-zone`), never
+  from `LocalDate.now()`.
 - The project does not use Lombok; write constructors and loggers explicitly.
 
 ## Naming exceptions
