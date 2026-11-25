@@ -12,8 +12,8 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Scaffolding: structure, rules, health, Swagger, Docker, Flyway V1 (`users`) | **done** |
-| 2 | Subjects, topics, items (CRUD) | next |
-| 3 | Media and rich content | planned |
+| 2 | Subjects, topics, items (CRUD) | **done** |
+| 3 | Media and rich content | next |
 | 4 | Progress tracking, dashboard numbers, flashcards | planned |
 | 5 | LLM import (Anthropic, Ollama first) | planned |
 | 6 | Search and polish | planned |
@@ -29,6 +29,15 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/v1/status` | Service name, API version and the current user (also proves the database is reachable) |
+| GET, POST | `/api/v1/subjects` | List (with topic and item counts) or create subjects |
+| GET, PUT, DELETE | `/api/v1/subjects/{id}` | Read, replace or delete a subject (delete cascades) |
+| GET | `/api/v1/subjects/{id}/topics` | The subject's topic tree with item counts |
+| POST | `/api/v1/topics` | Create a topic (top level or under a parent) |
+| GET, PUT, DELETE | `/api/v1/topics/{id}` | Read, replace or delete a topic (delete cascades to subtopics and items) |
+| PATCH | `/api/v1/topics/{id}/move` | New parent and sort order |
+| GET | `/api/v1/topics/{id}/items?difficulty=&tag=&page=&size=` | One page of a topic's items |
+| POST | `/api/v1/items` | Create an item |
+| GET, PUT, DELETE | `/api/v1/items/{id}` | Read (with previous/next ids), replace or delete an item |
 | GET | `/actuator/health` (`/liveness`, `/readiness`) | Health probes |
 | GET | `/swagger-ui.html`, `/v3/api-docs` | Swagger UI and OpenAPI JSON |
 

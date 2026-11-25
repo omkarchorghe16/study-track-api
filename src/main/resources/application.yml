@@ -9,6 +9,9 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      # Loads lazy collections (item tags) for a whole page in one query instead of one per item.
+      hibernate.default_batch_fetch_size: 50
   flyway:
     enabled: true
   jackson:
