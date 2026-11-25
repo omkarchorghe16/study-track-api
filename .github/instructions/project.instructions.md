@@ -16,8 +16,8 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
   `OpenApiConfiguration`) and `exception/ApiExceptionHandler` (error mapping).
 - Match `SubjectController` / `SubjectService` (CRUD) and `TopicService` (tree, ownership through the
-  subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest` (they create
-  data through the endpoints with `support/StudyApiClient`), `LoggingAspectTest`.
+  subject). Tests: `SubjectIntegrationTest`, `TopicIntegrationTest`, `ItemIntegrationTest`, `MediaIntegrationTest` (they create
+  data through the endpoints with `support/StudyApiClient`), `HtmlSanitizerTest`, `LoggingAspectTest`.
 - Ownership: `SubjectService.findOwnedSubject`, `TopicService.findOwnedTopic` and `ItemService` throw
   `NoSuchElementException` (404) for records of another user. Other features reach a subject or topic
   through these methods, never through another feature's repository.
@@ -51,6 +51,11 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 - H2 has no `TEXT` type that Hibernate validates as `VARCHAR`; mirror PostgreSQL `TEXT` columns as
   `VARCHAR(1000000)` in `test-schema.sql`.
 - Stored HTML references images as `<img src="/api/v1/media/{id}">`, never base64.
+- Every HTML field is cleaned by `content/HtmlSanitizer` before it is saved; a new HTML field must go
+  through it too. Change the allowed tags there (and in the UI's `RichContentComponent`) together.
+- Uploaded files go through the `media.MediaStorage` interface (`LocalMediaStorage` today, under
+  `app.media.storage-dir`). Delete files only after the transaction commits. Detect image types from
+  their bytes (`ImageType`), never from the name; SVG stays rejected.
 
 ## Logging
 

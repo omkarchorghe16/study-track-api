@@ -1,5 +1,6 @@
 package com.studytrack.api.topic;
 
+import com.studytrack.api.content.HtmlSanitizer;
 import com.studytrack.api.subject.SubjectEntity;
 import com.studytrack.api.subject.SubjectService;
 import com.studytrack.api.topic.TopicDtos.CreateTopicRequest;
@@ -22,11 +23,14 @@ import java.util.stream.Collectors;
 public class TopicService {
     private final TopicRepository topicRepository;
     private final SubjectService subjectService;
+    private final HtmlSanitizer htmlSanitizer;
     private final CurrentUser currentUser;
 
-    public TopicService(TopicRepository topicRepository, SubjectService subjectService, CurrentUser currentUser) {
+    public TopicService(TopicRepository topicRepository, SubjectService subjectService, HtmlSanitizer htmlSanitizer,
+                        CurrentUser currentUser) {
         this.topicRepository = topicRepository;
         this.subjectService = subjectService;
+        this.htmlSanitizer = htmlSanitizer;
         this.currentUser = currentUser;
     }
 
@@ -57,7 +61,7 @@ public class TopicService {
         TopicEntity topic = new TopicEntity(subject.getId());
         topic.setParentId(request.parentId());
         topic.setName(request.name().strip());
-        topic.setDescriptionHtml(blankToNull(request.descriptionHtml()));
+        topic.setDescriptionHtml(htmlSanitizer.sanitizeHtml(request.descriptionHtml()));
         topic.setSortOrder(request.sortOrder() != null
                 ? request.sortOrder()
                 : topicRepository.findMaxSortOrder(subject.getId(), request.parentId()) + 1);
@@ -68,7 +72,7 @@ public class TopicService {
     public TopicResponse replaceTopic(Long topicId, ReplaceTopicRequest request) {
         TopicEntity topic = findOwnedTopic(topicId);
         topic.setName(request.name().strip());
-        topic.setDescriptionHtml(blankToNull(request.descriptionHtml()));
+        topic.setDescriptionHtml(htmlSanitizer.sanitizeHtml(request.descriptionHtml()));
         if (request.sortOrder() != null) {
             topic.setSortOrder(request.sortOrder());
         }
@@ -137,13 +141,6 @@ public class TopicService {
                     topic.getDescriptionHtml(), topic.getSortOrder(), itemCount, totalItemCount, children));
         }
         return nodes;
-    }
-
-    private static String blankToNull(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return value;
     }
 
     private TopicResponse toResponse(TopicEntity topic) {

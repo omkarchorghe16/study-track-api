@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -37,6 +40,25 @@ public class ApiExceptionHandler {
     ResponseEntity<ApiError> noRoute(NoResourceFoundException exception, HttpServletRequest request) {
         logClientFailure(HttpStatus.NOT_FOUND.value(), "no route", request);
         return response(HttpStatus.NOT_FOUND, "No endpoint matches this path", Map.of());
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ApiError> uploadTooLarge(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        logClientFailure(HttpStatus.PAYLOAD_TOO_LARGE.value(), "upload too large", request);
+        return response(HttpStatus.PAYLOAD_TOO_LARGE, "The uploaded file is too large", Map.of());
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    ResponseEntity<ApiError> missingPart(MissingServletRequestPartException exception, HttpServletRequest request) {
+        logClientFailure(HttpStatus.BAD_REQUEST.value(), "missing multipart part", request);
+        return response(HttpStatus.BAD_REQUEST, "Missing multipart part: " + exception.getRequestPartName(), Map.of());
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ApiError> unsupportedMediaType(HttpMediaTypeNotSupportedException exception,
+                                                  HttpServletRequest request) {
+        logClientFailure(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), "unsupported content type", request);
+        return response(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported request content type", Map.of());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -502,6 +502,142 @@
       ]
     },
     {
+      "name": "Media",
+      "item": [
+        {
+          "name": "Upload image",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('mediaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Choose a PNG, JPEG, GIF or WebP image (max 5 MB)"
+                },
+                {
+                  "key": "altText",
+                  "value": "Example diagram",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get image info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}/info",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "{{mediaId}}",
+                "info"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "{{mediaId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create item with image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topicId\": {{topicId}},\n  \"itemType\": \"DIAGRAM\",\n  \"title\": \"Diagram with an image\",\n  \"questionHtml\": \"<p>What does this diagram show?</p>\",\n  \"answerHtml\": \"<p><img src=\\\"/api/v1/media/{{mediaId}}\\\" alt=\\\"Example diagram\\\"></p>\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/items",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete image",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "media",
+                "{{mediaId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Cleanup",
       "item": [
         {
