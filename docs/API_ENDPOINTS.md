@@ -139,8 +139,8 @@ Tables: `topics`; the tree is built from one query plus one grouped count over `
 On every save the service sets `answer_plain` (answer text without tags, via jsoup) and `content_hash`.
 Question, answer and notes HTML are sanitised with jsoup on every save (see section 8, Rich content), so
 the response can differ from what was sent. Images the item references are linked to it in `media_files`;
-images it no longer references are deleted with their files, as are all of its images when the item is
-deleted.
+images an edit no longer references are unlinked (kept, `item_id` cleared) so they can be used again, and
+all of the item's linked images are deleted with their files when the item is deleted.
 
 Tables: `study_items`, `tags`, `study_item_tags`; tags for a page are loaded in one batch.
 
