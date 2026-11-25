@@ -18,12 +18,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class TopicService {
+    private static final int MAX_TOPIC_NAME_LENGTH = 200;
+
     private final TopicRepository topicRepository;
     private final SubjectService subjectService;
     private final HtmlSanitizer htmlSanitizer;
@@ -104,6 +107,46 @@ public class TopicService {
     @Transactional
     public void deleteTopic(Long topicId) {
         topicRepository.delete(findOwnedTopic(topicId));
+    }
+
+    /** The topic at the end of a path and how many topics had to be created for it. */
+    public record TopicPathResult(TopicEntity topic, int createdTopicCount) {
+    }
+
+    /**
+     * Walks {@code names} ("Spring Boot", "Security") down from the subject's top level, matching
+     * existing topics by name (case-insensitive) and creating missing ones after their siblings.
+     */
+    @Transactional
+    public TopicPathResult findOrCreateTopicPath(Long subjectId, List<String> names) {
+        if (names.isEmpty()) {
+            throw new IllegalArgumentException("A topic path needs at least one name");
+        }
+        SubjectEntity subject = subjectService.findOwnedSubject(subjectId);
+        List<TopicEntity> topics = new ArrayList<>(topicRepository.findBySubjectIdOrderBySortOrderAscIdAsc(subject.getId()));
+        TopicEntity current = null;
+        int createdCount = 0;
+        for (String rawName : names) {
+            String name = rawName.strip();
+            String topicName = name.length() > MAX_TOPIC_NAME_LENGTH ? name.substring(0, MAX_TOPIC_NAME_LENGTH) : name;
+            Long parentId = current == null ? null : current.getId();
+            Optional<TopicEntity> existing = topics.stream()
+                    .filter(topic -> Objects.equals(topic.getParentId(), parentId))
+                    .filter(topic -> topic.getName().equalsIgnoreCase(topicName))
+                    .findFirst();
+            if (existing.isPresent()) {
+                current = existing.get();
+                continue;
+            }
+            TopicEntity created = new TopicEntity(subject.getId());
+            created.setParentId(parentId);
+            created.setName(topicName);
+            created.setSortOrder(topicRepository.findMaxSortOrder(subject.getId(), parentId) + 1);
+            current = topicRepository.saveAndFlush(created);
+            topics.add(current);
+            createdCount++;
+        }
+        return new TopicPathResult(current, createdCount);
     }
 
     /** Returns the topic if its subject belongs to the current user; other users' topics are reported as missing. */

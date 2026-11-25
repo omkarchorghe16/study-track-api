@@ -1,6 +1,6 @@
 # StudyTrack – Build Plan for Claude Code
 
-> **Status (2026-11-25):** Phases 1 to 4 are built. Phase 7 (accounts and deployment) is deferred and not to be
+> **Status (2026-11-25):** Phases 1 to 5 are built. Phase 7 (accounts and deployment) is deferred and not to be
 > started until it is asked for. Copied from the original Word plan; the copy here is the one to keep up to date.
 
 A study tracker where anyone (students, engineers, interview candidates) keeps their notes as subjects, topics and Q&A items with rich content and images, marks topics complete, resumes where they left off, and imports Word/PDF notes that an LLM turns into questions and answers.

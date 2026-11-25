@@ -83,6 +83,13 @@ public class StudyItemEntity {
         this.source = source;
     }
 
+    /** An item created by approving an import candidate of job {@code importJobId}. */
+    public static StudyItemEntity fromImport(Long importJobId) {
+        StudyItemEntity item = new StudyItemEntity(ItemSource.IMPORT);
+        item.importJobId = importJobId;
+        return item;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();

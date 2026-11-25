@@ -16,3 +16,12 @@ app:
   media:
     storage-dir: ${java.io.tmpdir}/study-track-test-media
     max-image-bytes: 2048
+  import:
+    max-file-bytes: 1048576
+    worker-threads: 1
+  llm:
+    retry-delay: PT0S
+    max-chunk-tokens: 200
+    max-chunks-per-job: 20
+    anthropic:
+      api-key: test-key-not-real
