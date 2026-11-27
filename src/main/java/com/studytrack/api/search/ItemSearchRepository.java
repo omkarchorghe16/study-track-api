@@ -11,7 +11,7 @@ import java.sql.DatabaseMetaData;
 import java.util.List;
 
 /**
- * Item search with native SQL. On PostgreSQL it uses the {@code study_items.search_vector} full-text
+ * Item search with native SQL. On PostgreSQL it uses the {@code study_track.questions.search_vector} full-text
  * column (V8) with prefix matching and {@code ts_rank} ordering. Other databases (H2 in tests) have no
  * tsvector, so every word must appear (as a substring) in the title, question, answer or notes, with
  * title matches first.
@@ -19,15 +19,15 @@ import java.util.List;
 @Repository
 public class ItemSearchRepository {
     private static final String SELECT_COLUMNS = """
-            select i.id, i.title, i.item_type, i.difficulty, coalesce(p.status, 'NOT_STARTED') as status,
+            select i.id, i.title, i.question_type, i.difficulty, coalesce(p.status, 'NOT_STARTED') as status,
                    s.id as subject_id, s.name as subject_name, t.id as topic_id, t.name as topic_name,
-                   i.question_html, i.answer_plain, i.notes_html
+                   i.question_html, i.answer_plain_text, i.notes_html
             """;
     private static final String FROM_OWNED_ITEMS = """
-            from study_items i
-            join topics t on t.id = i.topic_id
-            join subjects s on s.id = t.subject_id
-            left join item_progress p on p.item_id = i.id and p.user_id = :userId
+            from study_track.questions i
+            join study_track.topics t on t.id = i.topic_id
+            join study_track.subjects s on s.id = t.subject_id
+            left join study_track.question_progress p on p.question_id = i.id and p.user_id = :userId
             where s.user_id = :userId
             """;
 
@@ -64,7 +64,7 @@ public class ItemSearchRepository {
         return jdbcTemplate.query(sql, parameters, (resultSet, rowNumber) -> new SearchRow(
                 resultSet.getLong("id"),
                 resultSet.getString("title"),
-                resultSet.getString("item_type"),
+                resultSet.getString("question_type"),
                 resultSet.getString("difficulty"),
                 resultSet.getString("status"),
                 resultSet.getLong("subject_id"),
@@ -72,7 +72,7 @@ public class ItemSearchRepository {
                 resultSet.getLong("topic_id"),
                 resultSet.getString("topic_name"),
                 resultSet.getString("question_html"),
-                resultSet.getString("answer_plain"),
+                resultSet.getString("answer_plain_text"),
                 resultSet.getString("notes_html")));
     }
 
@@ -108,7 +108,7 @@ public class ItemSearchRepository {
             String term = ":term" + index;
             filter.append(" and (lower(i.title) like ").append(term)
                     .append(" or lower(coalesce(i.question_html, '')) like ").append(term)
-                    .append(" or lower(coalesce(i.answer_plain, '')) like ").append(term)
+                    .append(" or lower(coalesce(i.answer_plain_text, '')) like ").append(term)
                     .append(" or lower(coalesce(i.notes_html, '')) like ").append(term).append(')');
         }
         return filter.toString();

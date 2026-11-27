@@ -50,7 +50,8 @@ docker compose up --build -d                     # app only (PostgreSQL on the h
 
 - Flyway owns the schema (`src/main/resources/db/migration`) and Hibernate only validates it. Add a
   new `V<n>__*.sql` for every schema change, never edit an applied one, and mirror it in
-  `src/test/resources/test-schema.sql`.
+  `src/test/resources/test-schema.sql`. Tables live in the `study_track` schema (V10): write
+  `study_track.<table>` in migrations and native SQL, and add a `COMMENT ON` for new tables and columns.
 - Every user-owned table has `user_id`. Until login exists, services use `AppProperties.currentUserId()`
   (default 1, seeded by V1); never trust a user id sent by the client.
 - Secrets (database password, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY`) come from environment

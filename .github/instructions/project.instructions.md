@@ -27,7 +27,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   through these methods, never through another feature's repository.
 - Feature dependencies point one way: `progress` uses `item`, `topic` and `subject`; `stats` uses
   `subject` and `progress`. `subject`, `topic` and `item` never import `progress`: they read progress
-  numbers with their own read-only queries over `item_progress`/`topic_progress`, and `ItemStatus` lives
+  numbers with their own read-only queries over `question_progress`/`topic_progress`, and `ItemStatus` lives
   in `item`. `importer` uses `llm`, `media`, `item`, `topic` and `subject`; `llm` uses none of them.
   `search` uses `item` and `subject`; nothing uses `search`.
   Keep it that way to avoid circular dependencies.
@@ -57,6 +57,12 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 
 - Flyway owns the schema (`src/main/resources/db/migration`); Hibernate only validates it. Add a new
   `V<n>__<description>.sql` for every schema change and never edit an applied one.
+- Since V10 every table is in the `study_track` schema (`hibernate.default_schema`); Flyway's history stays in
+  `public`. Migrations and native SQL name tables as `study_track.<table>`, and every new table and column gets
+  a `COMMENT ON`. Table names say what they hold (`questions`, `question_progress`, `flashcard_reviews`,
+  `resume_points`, `import_drafts`); Java class names predate them (`StudyItemEntity` maps `questions`).
+- `questions.subject_id` and `questions.user_id` (V12) always equal the topic's subject and its owner. Set them
+  only through `StudyItemEntity.placeInTopic`, never separately.
 - Every migration that changes a table must be mirrored in `src/test/resources/test-schema.sql`, or
   the H2 tests will not match production. Flyway is off in tests.
 - The `study_track` database is on the same local PostgreSQL server as Folio Pro but is a separate
@@ -70,7 +76,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   `app.media.storage-dir`). Delete files only after the transaction commits. Detect image types from
   their bytes (`ImageType`), never from the name; SVG stays rejected.
 - Search (`search/ItemSearchRepository`) is native SQL: PostgreSQL uses the generated
-  `study_items.search_vector` column (V8), which Hibernate does not map and H2 cannot create, so H2 tests
+  `study_track.questions.search_vector` column (V8), which Hibernate does not map and H2 cannot create, so H2 tests
   run the `LIKE` fallback. A new searchable field means a new migration that redefines `search_vector`;
   check search on PostgreSQL by hand after such a change.
 - `media/MediaFileRepository.findUnusedMedia` decides which images the daily cleanup deletes. A new
@@ -102,8 +108,9 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   refusal fallback on the models that accept it. Check current model ids and API details before changing
   these.
 - The extraction prompt and JSON Schema live in `importer/ExtractionPrompt` only. Imports run in
-  `ImportProcessingService` on the `importTaskExecutor` with LLM calls outside transactions; review and
-  approval are in `ImportService`. Nothing reaches `study_items` without approval.
+  `ImportProcessingService` on the `importTaskExecutor` with LLM calls outside transactions; saving the
+  drafts as questions (no review step; duplicates become `DUPLICATE`) is in `ImportService.saveImportDrafts`, called
+  through `ImportDraftsReadyEvent` when an import ends. CSV files skip the LLM: `CsvQuestionReader` turns rows (question, answer, optional topic path) into drafts, saved like every import's.
 - Tests use `llm/FakeLlmClientFactory` (a `@Primary` test component, so every test context gets it)
   and never call a real provider.
 

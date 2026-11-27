@@ -11,25 +11,34 @@ section 4 and move here as they are built.
 
 ## 1. Database overview
 
-Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V7). Hibernate runs with
-`ddl-auto: validate`, so entities must match these tables exactly.
+Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V13). Since V10 every table lives in the
+PostgreSQL schema **`study_track`** (Flyway's `flyway_schema_history` stays in `public`), and every table and
+column has a `COMMENT` (see `\d+ study_track.questions` in psql or the IDE's database view). Hibernate runs
+with `ddl-auto: validate` and `hibernate.default_schema: study_track`; native SQL writes `study_track.<table>`.
+Java class names are older than the V10 table names; the Entity column maps them.
 
-| Table | Purpose | Key columns | Entity |
+| Table (`study_track.`) | Purpose | Key columns | Entity |
 |---|---|---|---|
-| `users` | People who own StudyTrack data | `id` identity, `display_name` ≤100, `email` ≤255 UNIQUE, `created_at`. V1 seeds user `1` (`Default user`) | `UserEntity` |
+| `users` | People who own StudyTrack data | `id` identity, `display_name` ≤100, `email` ≤255 UNIQUE, `created_at`. V1 seeds user `1` (`Default user`), the user every request acts as until login exists | `UserEntity` |
 | `subjects` | A user's courses or prep tracks | `id`, `user_id` → `users`, `name` ≤120 UNIQUE per user, `description` ≤1000, `icon` ≤16, `sort_order`, `archived`, `created_at`, `updated_at` | `SubjectEntity` |
 | `topics` | Topic tree inside a subject | `id`, `subject_id` → `subjects` ON DELETE CASCADE, `parent_id` → `topics` ON DELETE CASCADE (null = top level, never itself), `name` ≤200, `description_html`, `sort_order`, timestamps | `TopicEntity` |
-| `study_items` | Questions, notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `item_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain` (answer text without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` → `import_jobs` ON DELETE SET NULL (V6), `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, timestamps | `StudyItemEntity` |
+| `questions` | Questions with answers, and notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `subject_id` → `subjects` ON DELETE CASCADE and `user_id` → `users` (V12; always the topic's subject and its owner, set on create and move), `question_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain_text` (answer without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` → `import_jobs` ON DELETE SET NULL, `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, `search_vector` (PostgreSQL only, generated), timestamps | `StudyItemEntity` |
 | `tags` | A user's tags | `id`, `user_id` → `users`, `name` ≤50 lower-case, UNIQUE(`user_id`,`name`) | `TagEntity` |
-| `study_item_tags` | Item ↔ tag links | PK(`item_id`,`tag_id`), both ON DELETE CASCADE | `StudyItemEntity.tags` |
-| `item_progress` | A user's progress on an item (no row = `NOT_STARTED`) | `id`, `user_id`, `item_id` → `study_items` ON DELETE CASCADE, `status` (`NOT_STARTED`/`LEARNING`/`DONE`), `confidence` 1–5 or null, `review_count`, `last_reviewed_at`, `next_review_at`, `bookmarked`, `updated_at`; UNIQUE(`user_id`,`item_id`) | `ItemProgressEntity` |
+| `question_tags` | Question ↔ tag links | PK(`question_id`,`tag_id`), both ON DELETE CASCADE | `StudyItemEntity.tags` |
+| `question_progress` | A user's progress on a question (no row = `NOT_STARTED`) | `id`, `user_id`, `question_id` → `questions` ON DELETE CASCADE, `status` (`NOT_STARTED`/`LEARNING`/`DONE`), `confidence` 1–5 or null, `review_count`, `last_reviewed_at`, `next_review_at`, `bookmarked`, `updated_at`; UNIQUE(`user_id`,`question_id`) | `ItemProgressEntity` |
 | `topic_progress` | Manual "mark complete" | `id`, `user_id`, `topic_id` → `topics` ON DELETE CASCADE, `completed`, `completed_at`; UNIQUE(`user_id`,`topic_id`) | `TopicProgressEntity` |
-| `review_log` | One row per flashcard rating | `id`, `user_id`, `item_id` → `study_items` ON DELETE CASCADE, `result` (`AGAIN`/`HARD`/`GOOD`/`EASY`), `reviewed_at` | `ReviewLogEntity` |
-| `study_sessions` | "Continue where you left off", per subject | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `last_topic_id` → `topics` ON DELETE SET NULL, `last_item_id` → `study_items` ON DELETE SET NULL, `updated_at`; UNIQUE(`user_id`,`subject_id`) | `StudySessionEntity` |
-| `media_files` | Uploaded images | `id`, `user_id` → `users`, `item_id` → `study_items` ON DELETE SET NULL (null = not used by an item yet), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
-| `import_jobs` | One uploaded document being imported | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `file_name` ≤255, `file_type` (`DOCX`/`PDF`/`MD`/`TXT`), `media_id` → `media_files` ON DELETE SET NULL (the stored original), `status` (`UPLOADED`/`PARSING`/`EXTRACTING`/`READY_FOR_REVIEW`/`COMPLETED`/`FAILED`), `llm_provider`, `llm_model`, `total_chunks`, `processed_chunks`, `failed_chunks`, `input_tokens`, `output_tokens`, `error_message` ≤1000, timestamps | `ImportJobEntity` |
-| `import_candidates` | Items the LLM found, waiting for review | `id`, `job_id` → `import_jobs` ON DELETE CASCADE, `chunk_index`, `suggested_topic_path` ≤500 (`A > B`), `item_type`, `title` ≤300, `question_html`, `answer_html`, `notes_html` (sanitised), `difficulty`, `tags` (comma list), `image_refs` (comma list of media ids), `confidence_score` 0–1, `content_hash`, `status` (`PENDING`/`APPROVED`/`REJECTED`/`EDITED`), `target_topic_id` → `topics` ON DELETE SET NULL, `created_item_id` → `study_items` ON DELETE SET NULL, `sort_order` | `ImportCandidateEntity` |
-| `llm_settings` | A user's LLM for imports (no row = `app.llm` defaults) | `id`, `user_id` UNIQUE, `provider` (`ANTHROPIC`/`OPENAI`/`OLLAMA`), `model` ≤100, `base_url` ≤500 (null = provider default), `enabled`, `updated_at`. **No API key column**: keys come only from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | `LlmSettingsEntity` |
+| `flashcard_reviews` | One row per flashcard rating | `id`, `user_id`, `question_id` → `questions` ON DELETE CASCADE, `result` (`AGAIN`/`HARD`/`GOOD`/`EASY`), `reviewed_at` | `ReviewLogEntity` |
+| `resume_points` | "Continue where you left off", per subject | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `last_topic_id` → `topics` ON DELETE SET NULL, `last_question_id` → `questions` ON DELETE SET NULL, `updated_at`; UNIQUE(`user_id`,`subject_id`) | `StudySessionEntity` |
+| `media_files` | Uploaded images and import documents | `id`, `user_id` → `users`, `question_id` → `questions` ON DELETE SET NULL (null = not used by a question yet, or a document), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
+| `import_jobs` | One uploaded file being imported | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `file_name` ≤255, `file_type` (`DOCX`/`PDF`/`MD`/`TXT`/`CSV`), `uploaded_file_id` → `media_files` ON DELETE SET NULL (the stored original), `status` (`UPLOADED`/`PARSING`/`EXTRACTING`/`READY_FOR_REVIEW`/`COMPLETED`/`FAILED`), `llm_provider`, `llm_model` (both null for CSV), `total_chunks`, `processed_chunks`, `failed_chunks`, `input_tokens`, `output_tokens`, `error_message` ≤1000, timestamps | `ImportJobEntity` |
+| `import_drafts` | Questions found by an import, saved to `questions` at once (V13: `DUPLICATE` when the subject already had them) | `id`, `import_job_id` → `import_jobs` ON DELETE CASCADE, `chunk_index`, `suggested_topic_path` ≤500 (`A > B`), `question_type`, `title` ≤300, `question_html`, `answer_html`, `notes_html` (sanitised), `difficulty`, `tags` (comma list), `image_media_ids` (comma list of `media_files` ids), `confidence_score` 0–1 (null for CSV), `content_hash`, `status` (`APPROVED` saved, `DUPLICATE` skipped; `PENDING`/`EDITED` not saved yet, older imports; `REJECTED`), `target_topic_id` → `topics` ON DELETE SET NULL, `created_question_id` → `questions` ON DELETE SET NULL, `sort_order` | `ImportCandidateEntity` |
+| `llm_settings` | A user's LLM for imports (no row = `app.llm` defaults) | `id`, `user_id` UNIQUE, `provider` (`ANTHROPIC`/`OPENAI`/`GROQ`/`OLLAMA`), `model` ≤100, `base_url` ≤500 (null = provider default), `enabled`, `updated_at`. **No API key column**: keys come only from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY` | `LlmSettingsEntity` |
+
+V10 renamed `study_items` → `questions`, `study_item_tags` → `question_tags`, `item_progress` →
+`question_progress`, `review_log` → `flashcard_reviews`, `study_sessions` → `resume_points`, `import_candidates`
+→ `import_drafts`, and the columns `item_id` → `question_id`, `item_type` → `question_type`, `answer_plain` →
+`answer_plain_text`, `last_item_id` → `last_question_id`, `media_id` → `uploaded_file_id`, `job_id` →
+`import_job_id`, `created_item_id` → `created_question_id`, `image_refs` → `image_media_ids`.
 
 Every lookup checks ownership: a subject, topic or item of another user is reported as `404`.
 
@@ -48,7 +57,7 @@ Every handled error returns `ApiError`:
 | 404 | Unknown path, or a referenced record does not exist or belongs to another user |
 | 409 | Duplicate subject name for the user (case-insensitive); an import that cannot start (imports switched off, LLM not configured) or a review action while the import still runs or on a candidate already approved/rejected |
 | 413 | Upload larger than `app.media.max-image-bytes` (5 MB), `app.import.max-file-bytes` (20 MB) or the multipart limit (20 MB) |
-| 415 | Image upload that is not a PNG, JPEG, GIF or WebP image (checked by content, not by name), import that is not a .docx, .pdf, .md or .txt file whose content matches, or an unsupported request content type |
+| 415 | Image upload that is not a PNG, JPEG, GIF or WebP image (checked by content, not by name), import that is not a .docx, .pdf, .md, .txt or .csv file whose content matches, or an unsupported request content type |
 | 500 | Unexpected error (logged with stack trace; the body never includes it) |
 
 ## 3. Status
@@ -94,7 +103,7 @@ Tables: reads `users` (`SELECT … FROM users WHERE id = ?`).
 `percentDone` (DONE / all items, rounded down so 100 means all done; 0 without items), `createdAt`, `updatedAt`.
 
 Errors: `400` validation, `404` unknown subject, `409` duplicate name.
-Tables: `subjects`; counts read `topics`, `study_items`, `item_progress` and `topic_progress` with three grouped queries.
+Tables: `subjects`; counts read `topics`, `questions`, `question_progress` and `topic_progress` with three grouped queries.
 
 ```bash
 curl -X POST localhost:8083/api/v1/subjects -H 'Content-Type: application/json' \
@@ -122,14 +131,15 @@ curl -X POST localhost:8083/api/v1/subjects -H 'Content-Type: application/json' 
   rounded down), `completed` (the user marked it complete), `allItemsDone` (hint: at least one item and all
   of them DONE), `children` (same shape, ordered by `sortOrder` then `id`).
 
-Tables: `topics`; the tree is built from one query, one grouped count over `study_items` with
-`item_progress`, and one read of `topic_progress`.
+Tables: `topics`; the tree is built from one query, one grouped count over `questions` with
+`question_progress`, and one read of `topic_progress`.
 
 ## 7. Items
 
 | Method | Path | Body | Success |
 |---|---|---|---|
 | GET | `/api/v1/topics/{topicId}/items?status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse` |
+| GET | `/api/v1/subjects/{subjectId}/items?status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse`: the current user's questions of the subject (`questions.subject_id`, `user_id`), ordered by topic then item (each has `topicId`); `404` for another user's subject |
 | GET | `/api/v1/items/{itemId}` | | `200` `ItemResponse` |
 | POST | `/api/v1/items` | `ItemRequest` | `201` + `Location`, `ItemResponse` |
 | POST | `/api/v1/items/duplicate-check` | `DuplicateCheckRequest` | `200` list of `DuplicateItemResponse` (empty when none) |
@@ -169,7 +179,7 @@ all of the item's linked images are deleted with their files when the item is de
   dropped, at most 10) must all match, each as a word prefix (`hash` finds "HashMap"). A query with no
   words returns no results. `subjectId` limits to one subject (`404` if not the user's), `page` 0–1000,
   `size` 1–50.
-- PostgreSQL: `study_items.search_vector` (V8, generated from title A, question B, answer C, notes D,
+- PostgreSQL: `questions.search_vector` (V8, generated from title A, question B, answer C, notes D,
   English stemming, GIN index), `to_tsquery('english', 'word:* & …')`, ordered by `ts_rank`, then newest.
   Other databases (H2 in tests) fall back to case-insensitive `LIKE` on the same fields, title matches first.
 - `SearchPageResponse`: `query` (trimmed), `items`, `page`, `size`, `totalItems`, `totalPages`. Each item:
@@ -178,9 +188,9 @@ all of the item's linked images are deleted with their files when the item is de
 - `snippet` is plain text from the first of question, answer and notes that contains a match, cut to about
   220 characters around it, as parts `{text, match}`; `match` marks words to highlight. It is never HTML.
 
-Tables: `study_items`, `topics`, `subjects`, `item_progress` (native SQL in `search/ItemSearchRepository`).
+Tables: `questions`, `topics`, `subjects`, `question_progress` (native SQL in `search/ItemSearchRepository`).
 
-Tables: `study_items`, `tags`, `study_item_tags`, `item_progress`; tags and progress for a page are loaded in one
+Tables: `questions`, `tags`, `question_tags`, `question_progress`; tags and progress for a page are loaded in one
 batch each.
 
 ## 8. Media
@@ -271,7 +281,7 @@ descriptions.
 "Today" is the calendar day in `app.time-zone` (`APP_TIME_ZONE`, default `America/Chicago`; blank = the server's zone), so cards
 scheduled for later today are already due.
 
-Tables: `item_progress`, `topic_progress`, `review_log`, `study_sessions`.
+Tables: `question_progress`, `topic_progress`, `flashcard_reviews`, `resume_points`.
 
 ## 10. Stats
 
@@ -289,17 +299,33 @@ first, zeros included).
 
 Tables: reads everything above through `SubjectService` and `ProgressService`.
 
-## 11. Imports (LLM)
+## 11. Imports (LLM, or CSV without an LLM)
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| POST | `/api/v1/imports` | `multipart/form-data`: `file` (.docx, .pdf, .md/.markdown, .txt, ≤20 MB), `subjectId` | `202` + `Location`, `ImportJobResponse` |
+| POST | `/api/v1/imports` | `multipart/form-data`: `file` (.docx, .pdf, .md/.markdown, .txt, .csv, ≤20 MB), `subjectId` | `202` + `Location`, `ImportJobResponse` |
 | GET | `/api/v1/imports?limit=20` | | `200` list of `ImportJobResponse`, newest first (limit 1–100) |
 | GET | `/api/v1/imports/{importId}` | | `200` `ImportJobResponse` (poll every 2–3 s while running) |
-| GET | `/api/v1/imports/{importId}/candidates` | | `200` list of `CandidateResponse` in document order |
-| PUT | `/api/v1/imports/{importId}/candidates/{candidateId}` | `CandidateRequest` | `200` `CandidateResponse` (status `EDITED`) |
-| POST | `/api/v1/imports/{importId}/approve` | `CandidateSelectionRequest` | `200` `ApproveResponse` |
-| POST | `/api/v1/imports/{importId}/reject` | `CandidateSelectionRequest` | `200` `RejectResponse` |
+| GET | `/api/v1/imports/{importId}/candidates` | | `200` list of `CandidateResponse` in document order (the questions found, with `questionStatus` of each saved one) |
+| PUT | `/api/v1/imports/{importId}/candidates/{candidateId}` | `CandidateRequest` | `200` `CandidateResponse` (status `EDITED`); only for drafts not saved yet |
+| POST | `/api/v1/imports/{importId}/approve` | `CandidateSelectionRequest` | `200` `ApproveResponse`; saves drafts an older import left unsaved (new imports save everything themselves) |
+| POST | `/api/v1/imports/{importId}/reject` | `CandidateSelectionRequest` | `200` `RejectResponse`; drops unsaved drafts |
+
+**CSV** (`importer/CsvQuestionReader`): column 1 the question, column 2 the answer, optional column 3 the topic
+path (`Java > Collections`). RFC 4180 quoting (commas, line breaks and `""` inside quotes), UTF-8 (a BOM is
+skipped), comma delimiter or semicolon/tab when the first line has no comma. A first row starting with
+`question`,`answer` is a header and skipped, as are blank lines and rows with no question; more than 5,000
+questions or an unclosed quote fails the job with the line number. No LLM is called, so a CSV works with LLM
+imports switched off or no API key; the job has no `llmProvider`/`llmModel` and zero tokens. Each row becomes a
+draft (cells are plain text, HTML is escaped; difficulty `MEDIUM`, no confidence) and is saved as a question at
+once, like every import (below). Rows without a topic go to a topic named after the file.
+
+**No review step.** When an import ends (`COMPLETED`, or `FAILED` part-way, which keeps what was found), the
+processing thread publishes `ImportDraftsReadyEvent` and `ImportService.saveImportDrafts` saves every open draft
+as a question through the approve logic. A draft whose question the subject already has, or that repeats an
+earlier draft, is marked `DUPLICATE` and not saved again. The import page then lists the questions with a
+"completed" checkbox: ticking it is `PATCH /api/v1/items/{id}/progress` `{"status":"DONE"}` (unticking sends
+`NOT_STARTED`), stored in `question_progress` for the current user (1), and returned as `questionStatus`.
 
 **Pipeline** (`importer/ImportProcessingService`, `@Async` on the `importTaskExecutor`, `app.import.worker-threads`):
 
@@ -323,21 +349,20 @@ Tables: reads everything above through `SubjectService` and `ProgressService`.
 5. Save (`CandidateContentBuilder`): placeholders become `<img src="/api/v1/media/{id}">` (only the job's
    own images), plain text becomes paragraphs, HTML goes through `HtmlSanitizer`, tags are lower-cased
    (≤10), the title comes from the question (or notes/answer), and `content_hash` is computed like an
-   item's. Candidates and job counters are saved per chunk; the job ends `READY_FOR_REVIEW`
-   (or `FAILED` when every chunk failed). Token usage is logged per job; document text, prompts, answers
+   item's. Drafts and job counters are saved per chunk; at the end the drafts are saved as questions and the
+   job is `COMPLETED` (or `FAILED` when every chunk failed). Token usage is logged per job; document text, prompts, answers
    and keys are never logged.
 6. A restart marks jobs that were still running as `FAILED` ("The server restarted …").
 
-Nothing becomes a study item until it is approved.
-
 - `ImportJobResponse`: `id`, `subjectId`, `fileName`, `fileType`, `status`, `llmProvider`, `llmModel`,
   `totalChunks`, `processedChunks`, `failedChunks`, `percentComplete` (100 once finished), `inputTokens`,
-  `outputTokens`, `errorMessage` (when `FAILED`), `candidates` (`total`, `open` = pending + edited,
-  `approved`, `rejected`), `createdAt`, `updatedAt`.
+  `outputTokens`, `errorMessage` (when `FAILED`), `candidates` (`total`, `open` = not saved yet, `approved` =
+  saved as questions, `rejected`, `duplicates` = skipped because the subject had them), `createdAt`, `updatedAt`.
 - `CandidateResponse`: `id`, `chunkIndex`, `status`, `itemType`, `title`, `questionHtml`, `answerHtml`,
   `notesHtml`, `difficulty`, `tags`, `imageIds`, `confidence` (the LLM's 0–1 estimate), `suggestedTopicPath`,
-  `targetTopicId`, `createdItemId`, and for open candidates `duplicateItemId` (an item of the subject with
-  the same normalised question) and `duplicateOfCandidateId` (an earlier candidate of the same import).
+  `targetTopicId`, `createdItemId` (the saved question), `questionStatus` (the user's status of that question;
+  `DONE` = ticked completed), and for open and `DUPLICATE` drafts `duplicateItemId` (the question of the subject
+  with the same normalised question) or `duplicateOfCandidateId` (an earlier draft of the same import).
 - `CandidateRequest`: `itemType` and `title` (≤300) required; `questionHtml`, `answerHtml`, `notesHtml`
   (sanitised), `difficulty`, `tags` (≤20, each ≤50), `topicPath` (≤500, `A > B`), `targetTopicId` (a topic of
   the import's subject; wins over `topicPath`). Only `PENDING`/`EDITED` candidates can be edited (`409` otherwise).
@@ -345,14 +370,13 @@ Nothing becomes a study item until it is approved.
   another import are `404`; an empty list without `all` is `400`; approved or rejected candidates are skipped.
 - Approve, in document order: the target topic, else the topic path walked from the top level (matching
   names case-insensitively, creating missing topics), else a topic named after the file (`notes.docx` →
-  `notes`). Items are created with `source = IMPORT` and `import_job_id`, and their images are linked.
-  `ApproveResponse`: `approvedCount`, `createdTopicCount`, `createdItemIds`, `job`.
+  `notes`). Items are created with `source = IMPORT` and `import_job_id`, and their images are linked; duplicates
+  become `DUPLICATE`. `ApproveResponse`: `approvedCount` (questions created), `createdTopicCount`, `createdItemIds`, `job`.
   `RejectResponse`: `rejectedCount`, `job`. The job becomes `COMPLETED` when no candidate is open.
-- Review actions while the job is `UPLOADED`/`PARSING`/`EXTRACTING` are `409`. A `FAILED` job's candidates
-  (from chunks done before the failure) can still be reviewed.
+- Approve, reject and edit while the job is `UPLOADED`/`PARSING`/`EXTRACTING` are `409`.
 
-Tables: `import_jobs`, `import_candidates`, `media_files`; approval writes `topics`, `study_items`, `tags`,
-`study_item_tags`.
+Tables: `import_jobs`, `import_drafts`, `media_files`; saving writes `topics`, `questions`, `tags`,
+`question_tags`.
 
 ## 12. LLM settings
 

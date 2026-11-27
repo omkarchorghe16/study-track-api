@@ -78,6 +78,20 @@ public class CandidateContentBuilder {
     }
 
     /**
+     * The candidate for one CSV row. Cells are plain text: HTML-looking text is escaped and shown as typed,
+     * blank lines become paragraphs. Difficulty starts at MEDIUM and there is no LLM confidence.
+     */
+    public ImportCandidateEntity buildCsvCandidate(Long jobId, CsvQuestionReader.CsvQuestionRow row, int sortOrder) {
+        CandidateContent content = new CandidateContent(ItemType.QUESTION, null, plainTextToHtml(row.question()),
+                row.answer() == null ? null : plainTextToHtml(row.answer()), null, Difficulty.MEDIUM, List.of(),
+                row.topicPath());
+        ImportCandidateEntity candidate = new ImportCandidateEntity(jobId, 0);
+        applyContent(candidate, content);
+        candidate.setSortOrder(sortOrder);
+        return candidate;
+    }
+
+    /**
      * Writes cleaned content to the candidate. HTML must already be safe or come from the user (it is
      * sanitised again here); a null title is derived from the question, notes or answer.
      */

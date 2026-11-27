@@ -26,5 +26,10 @@ app:
     retry-delay: PT0S
     max-chunk-tokens: 200
     max-chunks-per-job: 20
+    # Fixed here so a developer's .env (loaded by application.yml) never leaks real keys into tests.
     anthropic:
       api-key: test-key-not-real
+    openai:
+      api-key: ""
+    groq:
+      api-key: ""

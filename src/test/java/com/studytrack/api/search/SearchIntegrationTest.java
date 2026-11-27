@@ -38,8 +38,8 @@ class SearchIntegrationTest {
 
     @BeforeEach
     void createItems() throws Exception {
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
         StudyApiClient api = new StudyApiClient(mvc, objectMapper);
         javaSubject = api.createSubject("Java");
         long collections = api.createTopic(javaSubject, null, "Collections");

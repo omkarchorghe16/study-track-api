@@ -1,6 +1,7 @@
 package com.studytrack.api.importer;
 
 import com.studytrack.api.item.Difficulty;
+import com.studytrack.api.item.ItemStatus;
 import com.studytrack.api.item.ItemType;
 import com.studytrack.api.llm.LlmProvider;
 import jakarta.validation.constraints.NotBlank;
@@ -39,15 +40,17 @@ public final class ImportDtos {
     }
 
     /** {@code open} counts PENDING and EDITED candidates, which still wait for review. */
-    public record CandidateCounts(long total, long open, long approved, long rejected) {
-        public static final CandidateCounts NONE = new CandidateCounts(0, 0, 0, 0);
+    /** {@code approved}: saved as questions; {@code duplicates}: not saved because the subject already had them. */
+    public record CandidateCounts(long total, long open, long approved, long rejected, long duplicates) {
+        public static final CandidateCounts NONE = new CandidateCounts(0, 0, 0, 0, 0);
     }
 
     /**
      * A candidate for review. HTML is sanitised; {@code imageIds} are the media ids it shows.
      * {@code duplicateItemId} is an existing item of the subject with the same question;
      * {@code duplicateOfCandidateId} an earlier open candidate of this import with the same question.
-     * {@code confidence} is the LLM's own 0-1 estimate.
+     * {@code confidence} is the LLM's own 0-1 estimate. {@code questionStatus} is the current user's status of the
+     * saved question ({@code createdItemId}); DONE means the user ticked it as completed.
      */
     public record CandidateResponse(
             Long id,
@@ -66,7 +69,8 @@ public final class ImportDtos {
             Long targetTopicId,
             Long createdItemId,
             Long duplicateItemId,
-            Long duplicateOfCandidateId) {
+            Long duplicateOfCandidateId,
+            ItemStatus questionStatus) {
     }
 
     /**

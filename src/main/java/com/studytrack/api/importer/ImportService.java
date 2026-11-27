@@ -10,6 +10,7 @@ import com.studytrack.api.importer.ImportDtos.ImportJobResponse;
 import com.studytrack.api.importer.ImportDtos.RejectResponse;
 import com.studytrack.api.item.ItemDtos.ItemRequest;
 import com.studytrack.api.item.ItemService;
+import com.studytrack.api.item.ItemStatus;
 import com.studytrack.api.llm.LlmException;
 import com.studytrack.api.llm.LlmSettingsService;
 import com.studytrack.api.llm.LlmSettingsService.ImportLlmSettings;
@@ -39,6 +40,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,7 +50,7 @@ import java.util.stream.Collectors;
 
 /**
  * Document imports: upload (the work then runs in {@link ImportProcessingService}), progress, and the
- * review of candidates. Nothing reaches {@code study_items} until the user approves it.
+ * review of candidates. Nothing reaches {@code study_track.questions} until the user approves it.
  */
 @Service
 public class ImportService {
@@ -89,7 +91,8 @@ public class ImportService {
     /**
      * Stores the file, creates the job (UPLOADED) and starts processing once the row is committed.
      * Fails fast with 409 when imports are switched off or the LLM is not configured (for example a
-     * missing API key), 413 when the file is too large and 415 for other formats.
+     * missing API key), 413 when the file is too large and 415 for other formats. CSV files need no LLM:
+     * they are stored without a provider or model and work even when LLM imports are off.
      */
     @Transactional
     public ImportJobResponse createImport(MultipartFile file, Long subjectId) {
@@ -105,7 +108,26 @@ public class ImportService {
         String fileName = cleanFileName(file.getOriginalFilename());
         ImportFileType fileType = ImportFileType.detectFileType(fileName, content)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                        "Only .docx, .pdf, .md and .txt files can be imported"));
+                        "Only .docx, .pdf, .md, .txt and .csv files can be imported"));
+        ImportLlmSettings llmSettings = fileType.usesLlm() ? findUsableLlmSettings() : null;
+
+        Long mediaId = mediaService.storeDocument(content, fileName, fileType.contentType(),
+                fileType.name().toLowerCase(Locale.ROOT));
+        ImportJobEntity job = new ImportJobEntity(currentUser.getUserId(), subject.getId());
+        job.setFileName(fileName);
+        job.setFileType(fileType);
+        job.setMediaId(mediaId);
+        if (llmSettings != null) {
+            job.setLlmProvider(llmSettings.connection().provider());
+            job.setLlmModel(llmSettings.connection().model());
+        }
+        ImportJobEntity saved = importJobRepository.save(job);
+        startAfterCommit(saved.getId());
+        return toJobResponse(saved, CandidateCounts.NONE);
+    }
+
+    /** The user's LLM settings, or 409 when imports are off or the client cannot be built (missing key). */
+    private ImportLlmSettings findUsableLlmSettings() {
         ImportLlmSettings llmSettings = llmSettingsService.findImportSettings(currentUser.getUserId());
         if (!llmSettings.enabled()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Imports are switched off in Settings");
@@ -115,18 +137,7 @@ public class ImportService {
         } catch (LlmException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage());
         }
-
-        Long mediaId = mediaService.storeDocument(content, fileName, fileType.contentType(),
-                fileType.name().toLowerCase(Locale.ROOT));
-        ImportJobEntity job = new ImportJobEntity(currentUser.getUserId(), subject.getId());
-        job.setFileName(fileName);
-        job.setFileType(fileType);
-        job.setMediaId(mediaId);
-        job.setLlmProvider(llmSettings.connection().provider());
-        job.setLlmModel(llmSettings.connection().model());
-        ImportJobEntity saved = importJobRepository.save(job);
-        startAfterCommit(saved.getId());
-        return toJobResponse(saved, CandidateCounts.NONE);
+        return llmSettings;
     }
 
     @Transactional(readOnly = true)
@@ -143,28 +154,41 @@ public class ImportService {
         return toJobResponse(findOwnedJob(jobId));
     }
 
-    /** All candidates in document order, with duplicate flags for the open ones. */
+    /**
+     * All drafts in document order. Saved ones carry the current user's status of their question
+     * ({@code questionStatus}, DONE when ticked as completed); open and DUPLICATE ones carry what they duplicate.
+     */
     @Transactional(readOnly = true)
     public List<CandidateResponse> listCandidates(Long jobId) {
         ImportJobEntity job = findOwnedJob(jobId);
         List<ImportCandidateEntity> candidates = importCandidateRepository.findByJobIdOrderBySortOrderAscIdAsc(job.getId());
-        Set<String> openHashes = candidates.stream()
-                .filter(candidate -> candidate.getStatus().isOpen() && candidate.getContentHash() != null)
+        Set<String> duplicateHashes = candidates.stream()
+                .filter(candidate -> isDuplicateCandidate(candidate) && candidate.getContentHash() != null)
                 .map(ImportCandidateEntity::getContentHash)
                 .collect(Collectors.toSet());
-        Map<String, Long> existingItems = itemService.findItemIdsByContentHash(job.getSubjectId(), openHashes);
+        Map<String, Long> existingItems = itemService.findItemIdsByContentHash(job.getSubjectId(), duplicateHashes);
+        Map<Long, ItemStatus> questionStatuses = itemService.findItemStatuses(candidates.stream()
+                .map(ImportCandidateEntity::getCreatedItemId).filter(id -> id != null).toList());
         Map<String, Long> firstCandidateByHash = new HashMap<>();
         List<CandidateResponse> responses = new ArrayList<>();
         for (ImportCandidateEntity candidate : candidates) {
             Long duplicateItemId = null;
             Long duplicateOfCandidateId = null;
-            if (candidate.getStatus().isOpen() && candidate.getContentHash() != null) {
-                duplicateItemId = existingItems.get(candidate.getContentHash());
-                duplicateOfCandidateId = firstCandidateByHash.putIfAbsent(candidate.getContentHash(), candidate.getId());
+            String hash = candidate.getContentHash();
+            Long firstWithHash = hash == null ? null : firstCandidateByHash.putIfAbsent(hash, candidate.getId());
+            if (isDuplicateCandidate(candidate) && hash != null) {
+                duplicateItemId = existingItems.get(hash);
+                duplicateOfCandidateId = duplicateItemId == null ? firstWithHash : null;
             }
-            responses.add(toCandidateResponse(candidate, duplicateItemId, duplicateOfCandidateId));
+            ItemStatus questionStatus = candidate.getCreatedItemId() == null ? null
+                    : questionStatuses.getOrDefault(candidate.getCreatedItemId(), ItemStatus.NOT_STARTED);
+            responses.add(toCandidateResponse(candidate, duplicateItemId, duplicateOfCandidateId, questionStatus));
         }
         return responses;
+    }
+
+    private static boolean isDuplicateCandidate(ImportCandidateEntity candidate) {
+        return candidate.getStatus().isOpen() || candidate.getStatus() == CandidateStatus.DUPLICATE;
     }
 
     @Transactional
@@ -185,23 +209,33 @@ public class ImportService {
                 request.tags(), request.topicPath()));
         candidate.setTargetTopicId(request.targetTopicId());
         candidate.setStatus(CandidateStatus.EDITED);
-        return toCandidateResponse(importCandidateRepository.saveAndFlush(candidate), null, null);
+        return toCandidateResponse(importCandidateRepository.saveAndFlush(candidate), null, null, null);
     }
 
     /**
-     * Creates an item for each selected open candidate, in document order: in its target topic, or in
-     * the topic its path names (created if missing; candidates without a path go to a topic named after
-     * the file). Images in the HTML are linked to the new items. The job is COMPLETED once no candidate
-     * is open.
+     * Creates a question for each selected open draft, in document order: in its target topic, or in the topic
+     * its path names (created if missing; drafts without a path go to a topic named after the file). A draft
+     * whose question the subject already has, or that repeats an earlier one, is marked DUPLICATE instead.
+     * Images in the HTML are linked to the new questions. The job is COMPLETED once no draft is open.
      */
     @Transactional
     public ApproveResponse approveCandidates(Long jobId, CandidateSelectionRequest request) {
         ImportJobEntity job = findReviewableJob(jobId);
         List<ImportCandidateEntity> selected = selectOpenCandidates(job, request);
+        Set<String> hashes = selected.stream()
+                .map(ImportCandidateEntity::getContentHash)
+                .filter(hash -> hash != null)
+                .collect(Collectors.toSet());
+        Set<String> savedHashes = new HashSet<>(itemService.findItemIdsByContentHash(job.getSubjectId(), hashes).keySet());
         Map<String, Long> topicIdByPath = new HashMap<>();
         int createdTopicCount = 0;
         List<Long> createdItemIds = new ArrayList<>();
         for (ImportCandidateEntity candidate : selected) {
+            String hash = candidate.getContentHash();
+            if (hash != null && !savedHashes.add(hash)) {
+                candidate.setStatus(CandidateStatus.DUPLICATE);
+                continue;
+            }
             Long topicId = candidate.getTargetTopicId();
             if (topicId == null) {
                 List<String> path = CandidateContentBuilder.splitTopicPath(candidate.getSuggestedTopicPath());
@@ -226,7 +260,17 @@ public class ImportService {
         }
         importCandidateRepository.saveAll(selected);
         ImportJobEntity updated = completeIfReviewed(job);
-        return new ApproveResponse(selected.size(), createdTopicCount, createdItemIds, toJobResponse(updated));
+        return new ApproveResponse(createdItemIds.size(), createdTopicCount, createdItemIds, toJobResponse(updated));
+    }
+
+    /**
+     * Saves an import's drafts as questions as soon as the import has found them, with no review step (see
+     * {@link #approveCandidates}: duplicates are marked DUPLICATE, not saved). Runs on the import thread.
+     */
+    @EventListener
+    @Transactional
+    public void saveImportDrafts(ImportDraftsReadyEvent event) {
+        approveCandidates(event.jobId(), new CandidateSelectionRequest(null, true));
     }
 
     @Transactional
@@ -331,8 +375,9 @@ public class ImportService {
             long edited = statusCounts.getOrDefault(CandidateStatus.EDITED, 0L);
             long approved = statusCounts.getOrDefault(CandidateStatus.APPROVED, 0L);
             long rejected = statusCounts.getOrDefault(CandidateStatus.REJECTED, 0L);
-            counts.put(jobId, new CandidateCounts(pending + edited + approved + rejected, pending + edited, approved,
-                    rejected));
+            long duplicates = statusCounts.getOrDefault(CandidateStatus.DUPLICATE, 0L);
+            counts.put(jobId, new CandidateCounts(pending + edited + approved + rejected + duplicates, pending + edited,
+                    approved, rejected, duplicates));
         });
         return counts;
     }
@@ -353,13 +398,14 @@ public class ImportService {
     }
 
     private static CandidateResponse toCandidateResponse(ImportCandidateEntity candidate, Long duplicateItemId,
-                                                         Long duplicateOfCandidateId) {
+                                                         Long duplicateOfCandidateId, ItemStatus questionStatus) {
         Double confidence = candidate.getConfidenceScore() == null ? null : candidate.getConfidenceScore().doubleValue();
         return new CandidateResponse(candidate.getId(), candidate.getChunkIndex(), candidate.getStatus(),
                 candidate.getItemType(), candidate.getTitle(), candidate.getQuestionHtml(), candidate.getAnswerHtml(),
                 candidate.getNotesHtml(), candidate.getDifficulty(), candidate.getTagList(),
                 candidate.getImageIdList(), confidence, candidate.getSuggestedTopicPath(),
-                candidate.getTargetTopicId(), candidate.getCreatedItemId(), duplicateItemId, duplicateOfCandidateId);
+                candidate.getTargetTopicId(), candidate.getCreatedItemId(), duplicateItemId, duplicateOfCandidateId,
+                questionStatus);
     }
 
     /** "java-notes.docx" becomes the topic "java-notes". */

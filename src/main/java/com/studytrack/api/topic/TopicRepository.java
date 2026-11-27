@@ -28,15 +28,15 @@ public interface TopicRepository extends JpaRepository<TopicEntity, Long> {
     @Query(value = """
             SELECT i.topic_id AS topicId, COUNT(*) AS itemCount,
                    SUM(CASE WHEN p.status = 'DONE' THEN 1 ELSE 0 END) AS doneCount
-            FROM study_items i JOIN topics t ON t.id = i.topic_id
-            LEFT JOIN item_progress p ON p.item_id = i.id AND p.user_id = :userId
+            FROM study_track.questions i JOIN study_track.topics t ON t.id = i.topic_id
+            LEFT JOIN study_track.question_progress p ON p.question_id = i.id AND p.user_id = :userId
             WHERE t.subject_id = :subjectId GROUP BY i.topic_id
             """, nativeQuery = true)
     List<TopicItemCount> countItemsByTopic(Long subjectId, Long userId);
 
     /** Topics of the subject the user marked complete. */
     @Query(value = """
-            SELECT tp.topic_id FROM topic_progress tp JOIN topics t ON t.id = tp.topic_id
+            SELECT tp.topic_id FROM study_track.topic_progress tp JOIN study_track.topics t ON t.id = tp.topic_id
             WHERE t.subject_id = :subjectId AND tp.user_id = :userId AND tp.completed = TRUE
             """, nativeQuery = true)
     List<Long> findCompletedTopicIds(Long subjectId, Long userId);

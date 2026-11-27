@@ -55,9 +55,9 @@ class MediaIntegrationTest {
 
     @BeforeEach
     void resetData() {
-        jdbcTemplate.update("DELETE FROM media_files");
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
+        jdbcTemplate.update("DELETE FROM study_track.media_files");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
         api = new StudyApiClient(mvc, objectMapper);
     }
 
@@ -94,7 +94,7 @@ class MediaIntegrationTest {
         mvc.perform(multipart("/api/v1/media").file(new MockMultipartFile("file", "empty.png", "image/png", new byte[0])))
                 .andExpect(status().isBadRequest());
         mvc.perform(multipart("/api/v1/media")).andExpect(status().isBadRequest());
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_files", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.media_files", Integer.class));
     }
 
     @Test
@@ -111,8 +111,8 @@ class MediaIntegrationTest {
 
     @Test
     void hidesOtherUsersMedia() throws Exception {
-        jdbcTemplate.update("MERGE INTO users (id, display_name, email) KEY (id) VALUES (2, 'Other', 'other@example.test')");
-        jdbcTemplate.update("INSERT INTO media_files (id, user_id, original_name, content_type, size_bytes, storage_key)"
+        jdbcTemplate.update("MERGE INTO study_track.users (id, display_name, email) KEY (id) VALUES (2, 'Other', 'other@example.test')");
+        jdbcTemplate.update("INSERT INTO study_track.media_files (id, user_id, original_name, content_type, size_bytes, storage_key)"
                 + " VALUES (900, 2, 'x.png', 'image/png', 1, 'other/x.png')");
         mvc.perform(get("/api/v1/media/900")).andExpect(status().isNotFound());
         mvc.perform(delete("/api/v1/media/900")).andExpect(status().isNotFound());
@@ -132,14 +132,14 @@ class MediaIntegrationTest {
                         """.formatted(topicId, answer)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.answerHtml").value("<p>Heap</p><img src=\"/api/v1/media/" + mediaId + "\">"));
-        assertEquals(itemId, jdbcTemplate.queryForObject("SELECT item_id FROM media_files WHERE id = ?", Long.class, mediaId));
+        assertEquals(itemId, jdbcTemplate.queryForObject("SELECT question_id FROM study_track.media_files WHERE id = ?", Long.class, mediaId));
 
         // Removing the image from the HTML unlinks it.
         mvc.perform(put("/api/v1/items/" + itemId).contentType(MediaType.APPLICATION_JSON).content("""
                         {"topicId":%d,"itemType":"QUESTION","title":"Memory","answerHtml":"<p>Heap</p>"}
                         """.formatted(topicId)))
                 .andExpect(status().isOk());
-        assertNull(jdbcTemplate.queryForObject("SELECT item_id FROM media_files WHERE id = ?", Long.class, mediaId));
+        assertNull(jdbcTemplate.queryForObject("SELECT question_id FROM study_track.media_files WHERE id = ?", Long.class, mediaId));
 
         mvc.perform(put("/api/v1/items/" + itemId).contentType(MediaType.APPLICATION_JSON).content("""
                         {"topicId":%d,"itemType":"QUESTION","title":"Memory","notesHtml":"<img src=\\"/api/v1/media/%d\\">"}
@@ -147,7 +147,7 @@ class MediaIntegrationTest {
                 .andExpect(status().isOk());
         Path file = storedFile(mediaId);
         mvc.perform(delete("/api/v1/items/" + itemId)).andExpect(status().isNoContent());
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM media_files", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.media_files", Integer.class));
         assertFalse(Files.exists(file));
     }
 
@@ -169,15 +169,15 @@ class MediaIntegrationTest {
                         {"name":"JVM","descriptionHtml":"<img src=\\"/api/v1/media/%d\\">"}
                         """.formatted(inTopic)))
                 .andExpect(status().isOk());
-        assertNull(jdbcTemplate.queryForObject("SELECT item_id FROM media_files WHERE id = ?", Long.class, shared));
-        jdbcTemplate.update("UPDATE media_files SET created_at = DATEADD('DAY', -30, CURRENT_TIMESTAMP) WHERE id <> ?", recent);
+        assertNull(jdbcTemplate.queryForObject("SELECT question_id FROM study_track.media_files WHERE id = ?", Long.class, shared));
+        jdbcTemplate.update("UPDATE study_track.media_files SET created_at = DATEADD('DAY', -30, CURRENT_TIMESTAMP) WHERE id <> ?", recent);
         Path unusedFile = storedFile(unused);
 
         int deleted = mediaService.deleteUnusedMedia(Instant.now().minus(Duration.ofDays(7)));
 
         assertEquals(1, deleted);
         assertEquals(List.of(recent, shared, inTopic),
-                jdbcTemplate.queryForList("SELECT id FROM media_files ORDER BY id", Long.class));
+                jdbcTemplate.queryForList("SELECT id FROM study_track.media_files ORDER BY id", Long.class));
         assertFalse(Files.exists(unusedFile));
     }
 
@@ -201,7 +201,7 @@ class MediaIntegrationTest {
     }
 
     private Path storedFile(long mediaId) {
-        String storageKey = jdbcTemplate.queryForObject("SELECT storage_key FROM media_files WHERE id = ?",
+        String storageKey = jdbcTemplate.queryForObject("SELECT storage_key FROM study_track.media_files WHERE id = ?",
                 String.class, mediaId);
         return Path.of(mediaProperties.storageDir()).toAbsolutePath().normalize().resolve(storageKey);
     }

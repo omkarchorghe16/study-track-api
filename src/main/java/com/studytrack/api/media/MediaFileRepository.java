@@ -35,15 +35,15 @@ public interface MediaFileRepository extends JpaRepository<MediaFileEntity, Long
      * since an image is linked to only one of them.
      */
     @Query(nativeQuery = true, value = """
-            select m.* from media_files m
-            where m.item_id is null and m.created_at < :createdBefore
-              and not exists (select 1 from import_jobs j where j.media_id = m.id)
-              and not exists (select 1 from study_items i
+            select m.* from study_track.media_files m
+            where m.question_id is null and m.created_at < :createdBefore
+              and not exists (select 1 from study_track.import_jobs j where j.uploaded_file_id = m.id)
+              and not exists (select 1 from study_track.questions i
                               where i.question_html like concat('%/api/v1/media/', m.id, '"%')
                                  or i.answer_html like concat('%/api/v1/media/', m.id, '"%')
                                  or i.notes_html like concat('%/api/v1/media/', m.id, '"%'))
-              and not exists (select 1 from topics t where t.description_html like concat('%/api/v1/media/', m.id, '"%'))
-              and not exists (select 1 from import_candidates c
+              and not exists (select 1 from study_track.topics t where t.description_html like concat('%/api/v1/media/', m.id, '"%'))
+              and not exists (select 1 from study_track.import_drafts c
                               where c.status in ('PENDING', 'EDITED')
                                 and (c.question_html like concat('%/api/v1/media/', m.id, '"%')
                                      or c.answer_html like concat('%/api/v1/media/', m.id, '"%')

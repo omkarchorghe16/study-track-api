@@ -434,6 +434,36 @@
           }
         },
         {
+          "name": "List subject items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/subjects/{{subjectId}}/items?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "subjects",
+                "{{subjectId}}",
+                "items"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
           "name": "Get item",
           "request": {
             "method": "GET",
@@ -972,7 +1002,7 @@
                   "key": "file",
                   "type": "file",
                   "src": [],
-                  "description": "Choose a .docx, .pdf, .md or .txt file (max 20 MB)"
+                  "description": "Choose a .docx, .pdf, .md, .txt or .csv file (max 20 MB). CSV: question, answer, optional topic."
                 },
                 {
                   "key": "subjectId",

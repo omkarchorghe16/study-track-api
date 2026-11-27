@@ -41,6 +41,35 @@ public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long
     Page<StudyItemEntity> findTopicItems(Long topicId, Difficulty difficulty, String tag, ItemStatus status,
                                          boolean notStarted, Long userId, Pageable pageable);
 
+    /**
+     * A user's items of one subject (all its topics, through {@code questions.subject_id}), with the same
+     * filters as {@link #findTopicItems}. Ordered by the topic's sort order, then the item's.
+     */
+    @Query(value = """
+            select i from StudyItemEntity i, TopicEntity t
+            where t.id = i.topicId and i.subjectId = :subjectId and i.userId = :userId
+              and (:difficulty is null or i.difficulty = :difficulty)
+              and (:tag is null or exists (select 1 from i.tags tag where tag.name = :tag))
+              and (:status is null
+                   or exists (select 1 from ItemProgressEntity p
+                              where p.itemId = i.id and p.userId = :userId and p.status = :status)
+                   or (:notStarted = true and not exists (select 1 from ItemProgressEntity p
+                              where p.itemId = i.id and p.userId = :userId)))
+            order by t.sortOrder, t.id, i.sortOrder, i.id
+            """, countQuery = """
+            select count(i) from StudyItemEntity i
+            where i.subjectId = :subjectId and i.userId = :userId
+              and (:difficulty is null or i.difficulty = :difficulty)
+              and (:tag is null or exists (select 1 from i.tags tag where tag.name = :tag))
+              and (:status is null
+                   or exists (select 1 from ItemProgressEntity p
+                              where p.itemId = i.id and p.userId = :userId and p.status = :status)
+                   or (:notStarted = true and not exists (select 1 from ItemProgressEntity p
+                              where p.itemId = i.id and p.userId = :userId)))
+            """)
+    Page<StudyItemEntity> findSubjectItems(Long subjectId, Difficulty difficulty, String tag, ItemStatus status,
+                                           boolean notStarted, Long userId, Pageable pageable);
+
     /** The user's progress rows for these items (items without a row are NOT_STARTED). */
     @Query("""
             select p.itemId as itemId, p.status as status, p.confidence as confidence, p.bookmarked as bookmarked,

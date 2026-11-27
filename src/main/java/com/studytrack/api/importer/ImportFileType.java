@@ -12,7 +12,9 @@ public enum ImportFileType {
     DOCX("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     PDF("application/pdf"),
     MD("text/markdown"),
-    TXT("text/plain");
+    TXT("text/plain"),
+    /** Questions in rows: question, answer, optional topic path. Read directly, without an LLM. */
+    CSV("text/csv");
 
     private final String contentType;
 
@@ -24,9 +26,14 @@ public enum ImportFileType {
         return contentType;
     }
 
+    /** Whether the file is sent to an LLM; CSV rows are already questions and answers. */
+    public boolean usesLlm() {
+        return this != CSV;
+    }
+
     /**
-     * The type for a file name ending in .docx, .pdf, .md/.markdown or .txt whose content matches: a ZIP
-     * container for DOCX, a {@code %PDF} header for PDF and valid UTF-8 text for MD and TXT.
+     * The type for a file name ending in .docx, .pdf, .md/.markdown, .txt or .csv whose content matches: a ZIP
+     * container for DOCX, a {@code %PDF} header for PDF and valid UTF-8 text for MD, TXT and CSV.
      */
     public static Optional<ImportFileType> detectFileType(String fileName, byte[] content) {
         if (fileName == null) {
@@ -42,6 +49,8 @@ public enum ImportFileType {
             byName = MD;
         } else if (lowerName.endsWith(".txt")) {
             byName = TXT;
+        } else if (lowerName.endsWith(".csv")) {
+            byName = CSV;
         } else {
             return Optional.empty();
         }
@@ -52,7 +61,7 @@ public enum ImportFileType {
         return switch (this) {
             case DOCX -> startsWith(content, new byte[]{'P', 'K', 3, 4});
             case PDF -> startsWith(content, new byte[]{'%', 'P', 'D', 'F'});
-            case MD, TXT -> isUtf8Text(content);
+            case MD, TXT, CSV -> isUtf8Text(content);
         };
     }
 
