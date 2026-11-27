@@ -10,7 +10,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 ## Layout and reference classes
 
 - Base package `com.studytrack.api`, **packaged by feature**: `status`, `user`, and from later phases
-  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`, `search`, `catalog`. Each feature holds its
+  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`, `search`, `catalog`, `explanation`. Each feature holds its
   `*Controller`, `*Service`, `*Repository`, `*Entity` and `*Dtos` classes. Controllers call only
   services of their own or another feature, never repositories.
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
@@ -57,6 +57,16 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   after editing them. Question text is plain; `CatalogAnswerFormatter` turns it into HTML on enroll.
 - A user "adds" a catalog subject with `CatalogService.enrollInSubject`, which copies the tree into `subjects` and
   `topics` and the starter questions into `questions` (source `CATALOG`, through `ItemService.createCatalogQuestions`); the copy never follows later catalog changes.
+
+## Explanations
+
+- `explanation` uses `item`, `subject`, `topic`, `llm` and `user`; none of them import it. It asks the user's
+  configured provider through `LlmSettingsService.createClient` and `LlmClient.extract`, with its own prompt and
+  JSON Schema in `ExplanationPrompt` (change how explanations are written there only). The model's reply is
+  stored as JSON text in `question_explanations.content` and is never HTML; the Angular app renders it as text.
+- The LLM call runs outside any transaction. 409 means the user must fix settings (AI off, key missing), 424 means
+  the provider failed or gave no usable answer; both carry a message that is safe to show. The batch run
+  (`ExplanationBatchRunner`, one worker thread) stops on 409 and counts other failures. Never log prompts or answers.
 
 ## Users
 
