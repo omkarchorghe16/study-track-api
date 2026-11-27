@@ -49,13 +49,14 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 
 ## Catalog
 
-- `catalog_tracks` / `catalog_subjects` / `catalog_topics` are shared, topics only (no questions). Only an admin
+- `catalog_tracks` / `catalog_subjects` / `catalog_topics` / `catalog_questions` are shared (topics and starter questions). Only an admin
   (`users.is_admin`, checked by `CurrentUser.requireAdmin` in `CatalogAdminService`) changes them, through the CSV
   import (`CatalogImportService`: additive, names matched ignoring case, never deletes). `CatalogSeeder` imports
   `src/main/resources/catalog/*.csv` once into an empty catalog; `CatalogIntegrationTest` imports the shipped files
-  and fails on any rejected row, so run it after editing them.
+  and fails on any rejected row, or when a `*-questions.csv` names a track, subject or topic the topic files lack, so run it
+  after editing them. Question text is plain; `CatalogAnswerFormatter` turns it into HTML on enroll.
 - A user "adds" a catalog subject with `CatalogService.enrollInSubject`, which copies the tree into `subjects` and
-  `topics`; the copy never follows later catalog changes.
+  `topics` and the starter questions into `questions` (source `CATALOG`, through `ItemService.createCatalogQuestions`); the copy never follows later catalog changes.
 
 ## Users
 

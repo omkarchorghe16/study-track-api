@@ -25,7 +25,8 @@ public class CatalogAdminController {
 
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Import tracks, subjects and topics from a CSV",
-            description = "Columns: track, subject, optional topic_path. Adds what is missing; existing rows and "
+            description = "Columns: track, subject, optional topic_path, and optional question, answer, difficulty (a starter "
+                    + "question under that topic). Adds what is missing; existing rows and "
                     + "user data are never changed or deleted. Rows without a track or subject are reported, not imported.")
     @ApiResponse(responseCode = "400", description = "Not a readable CSV (for example an unclosed quote)")
     @ApiResponse(responseCode = "403", description = "The current user is not an admin")

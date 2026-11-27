@@ -11,7 +11,7 @@ section 4 and move here as they are built.
 
 ## 1. Database overview
 
-Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V14). Since V10 every table lives in the
+Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V15). Since V10 every table lives in the
 PostgreSQL schema **`study_track`** (Flyway's `flyway_schema_history` stays in `public`), and every table and
 column has a `COMMENT` (see `\d+ study_track.questions` in psql or the IDE's database view). Hibernate runs
 with `ddl-auto: validate` and `hibernate.default_schema: study_track`; native SQL writes `study_track.<table>`.
@@ -22,7 +22,7 @@ Java class names are older than the V10 table names; the Entity column maps them
 | `users` | People who own StudyTrack data | `id` identity, `display_name` ≤100, `email` ≤255 UNIQUE, `created_at`, `is_admin` (V14; may change the catalog). V1 seeds user `1` (`Default user`, an admin), the user every request acts as until login exists | `UserEntity` |
 | `subjects` | A user's courses or prep tracks | `id`, `user_id` → `users`, `catalog_subject_id` → `catalog_subjects` ON DELETE SET NULL (V14; the catalog subject it was copied from, or null), `name` ≤120 UNIQUE per user, `description` ≤1000, `icon` ≤16, `sort_order`, `archived`, `created_at`, `updated_at` | `SubjectEntity` |
 | `topics` | Topic tree inside a subject | `id`, `subject_id` → `subjects` ON DELETE CASCADE, `parent_id` → `topics` ON DELETE CASCADE (null = top level, never itself), `name` ≤200, `description_html`, `sort_order`, timestamps | `TopicEntity` |
-| `questions` | Questions with answers, and notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `subject_id` → `subjects` ON DELETE CASCADE and `user_id` → `users` (V12; always the topic's subject and its owner, set on create and move), `question_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain_text` (answer without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`), `import_job_id` → `import_jobs` ON DELETE SET NULL, `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, `search_vector` (PostgreSQL only, generated), timestamps | `StudyItemEntity` |
+| `questions` | Questions with answers, and notes, examples, diagrams | `id`, `topic_id` → `topics` ON DELETE CASCADE, `subject_id` → `subjects` ON DELETE CASCADE and `user_id` → `users` (V12; always the topic's subject and its owner, set on create and move), `question_type` (`QUESTION`/`NOTE`/`EXAMPLE`/`DIAGRAM`), `title` ≤300, `question_html`, `answer_html`, `notes_html`, `answer_plain_text` (answer without tags), `difficulty` (`EASY`/`MEDIUM`/`HARD`, default `MEDIUM`), `source` (`MANUAL`/`IMPORT`/`CATALOG`), `import_job_id` → `import_jobs` ON DELETE SET NULL, `content_hash` (SHA-256 of the normalised question text, or title), `sort_order`, `search_vector` (PostgreSQL only, generated), timestamps | `StudyItemEntity` |
 | `tags` | A user's tags | `id`, `user_id` → `users`, `name` ≤50 lower-case, UNIQUE(`user_id`,`name`) | `TagEntity` |
 | `question_tags` | Question ↔ tag links | PK(`question_id`,`tag_id`), both ON DELETE CASCADE | `StudyItemEntity.tags` |
 | `question_progress` | A user's progress on a question (no row = `NOT_STARTED`) | `id`, `user_id`, `question_id` → `questions` ON DELETE CASCADE, `status` (`NOT_STARTED`/`LEARNING`/`DONE`), `confidence` 1–5 or null, `review_count`, `last_reviewed_at`, `next_review_at`, `bookmarked`, `updated_at`; UNIQUE(`user_id`,`question_id`) | `ItemProgressEntity` |
@@ -30,6 +30,7 @@ Java class names are older than the V10 table names; the Entity column maps them
 | `catalog_tracks` | Shared study tracks, e.g. "Full-Stack Java Developer" (V14) | `id`, `name` ≤120 UNIQUE, `description`, `sort_order`, `created_at` | `CatalogTrackEntity` |
 | `catalog_subjects` | Shared subjects of a track | `id`, `track_id` → `catalog_tracks` ON DELETE CASCADE, `name` ≤120 UNIQUE per track, `description`, `icon`, `sort_order` | `CatalogSubjectEntity` |
 | `catalog_topics` | Shared topic tree of a catalog subject | `id`, `catalog_subject_id` → `catalog_subjects` ON DELETE CASCADE, `parent_id` → `catalog_topics` ON DELETE CASCADE, `name` ≤200, `sort_order` | `CatalogTopicEntity` |
+| `catalog_questions` | Starter questions and answers under a catalog topic (V15), plain text | `id`, `catalog_topic_id` → `catalog_topics` ON DELETE CASCADE, `question` ≤1000, `answer`, `difficulty` (`EASY`/`MEDIUM`/`HARD`), `sort_order` | `CatalogQuestionEntity` |
 | `flashcard_reviews` | One row per flashcard rating | `id`, `user_id`, `question_id` → `questions` ON DELETE CASCADE, `result` (`AGAIN`/`HARD`/`GOOD`/`EASY`), `reviewed_at` | `ReviewLogEntity` |
 | `resume_points` | "Continue where you left off", per subject | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `last_topic_id` → `topics` ON DELETE SET NULL, `last_question_id` → `questions` ON DELETE SET NULL, `updated_at`; UNIQUE(`user_id`,`subject_id`) | `StudySessionEntity` |
 | `media_files` | Uploaded images and import documents | `id`, `user_id` → `users`, `question_id` → `questions` ON DELETE SET NULL (null = not used by a question yet, or a document), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
@@ -419,19 +420,19 @@ Tables: `llm_settings`.
 
 A shared, read-only-for-users library of what to study: tracks (for example *Full-Stack Java Developer*, *DevOps Engineer*, *Data Engineer*, *QA and Test Automation Engineer*,
 *Python Developer*, *Angular Developer*, *React Developer*) hold subjects (*Core Java*), which hold a topic tree
-(*Collections › HashMap*). It has topics only, no questions. An empty catalog is filled at startup from
+(*Collections › HashMap*). It holds topics and starter questions with answers. An empty catalog is filled at startup from
 `src/main/resources/catalog/*.csv` (`app.catalog.seed-on-startup`, env `CATALOG_SEED_ON_STARTUP`); it runs once and
-never when a track already exists, so files added later are loaded by uploading them through the admin import (it only adds what is missing, so uploading all of them again is safe). Tables: `catalog_tracks`, `catalog_subjects`, `catalog_topics`, and
-`subjects.catalog_subject_id`.
+never when a track already exists, so files added later are loaded by uploading them through the admin import (it only adds what is missing, so uploading all of them again is safe). Tables: `catalog_tracks`, `catalog_subjects`, `catalog_topics`, `catalog_questions` and
+`subjects.catalog_subject_id`. The seed files are `01`–`07` (topics) and `11`–`17` `*-questions.csv` (starter questions); the AI-drafted answers should be reviewed before relying on them.
 
 | Method and path | What it does |
 |---|---|
 | `GET /api/v1/users/me` | `{id, displayName, admin}`; the UI shows the import-catalog button only to admins |
 | `GET /api/v1/catalog/tracks` | Tracks with `subjectCount`, by sort order |
-| `GET /api/v1/catalog/tracks/{trackId}/subjects` | Subjects with `topicCount` and `copiedSubjectId` (id of the user's own subject when already added, else absent). `404` for an unknown track |
+| `GET /api/v1/catalog/tracks/{trackId}/subjects` | Subjects with `topicCount`, `questionCount` and `copiedSubjectId` (id of the user's own subject when already added, else absent). `404` for an unknown track |
 | `GET /api/v1/catalog/subjects/{catalogSubjectId}/topics` | Topic tree `[{id, name, children}]`. `404` for an unknown subject |
-| `POST /api/v1/catalog/subjects/{catalogSubjectId}/enroll` | Creates the user's own subject (name, description, icon) with a copy of the whole topic tree; `201` with the subject (as in section 5). The copy is independent of later catalog changes. `409` when already added or when the user has a subject with that name; `404` for an unknown subject |
+| `POST /api/v1/catalog/subjects/{catalogSubjectId}/enroll` | Creates the user's own subject (name, description, icon) with a copy of the whole topic tree and its starter questions (questions with `source` `CATALOG`, formatted as HTML); `201` with the subject (as in section 5). The copy is independent of later catalog changes. `409` when already added or when the user has a subject with that name; `404` for an unknown subject |
 | `GET /api/v1/catalog/template.csv` | A sample catalog CSV (`catalog-template.csv`) |
-| `POST /api/v1/admin/catalog/import` | Admin only (`403` otherwise). Multipart field `file`: CSV with columns `track`, `subject`, optional `topic_path` (levels separated by `>`); a header row, blank lines, a UTF-8 BOM, quoted cells and `,` `;` or tab delimiters are accepted; at most 20,000 rows. Adds what is missing, matching names ignoring case; never changes or deletes existing rows or users' subjects. Response `{rowsRead, tracksAdded, subjectsAdded, topicsAdded, rejectedRowCount, rejectedRows}`: rows without a track or subject, or with too-long names, are listed (first 20, `Line n: reason`) and skipped. `400` for an unreadable CSV (for example an unclosed quote) |
+| `POST /api/v1/admin/catalog/import` | Admin only (`403` otherwise). Multipart field `file`: CSV with columns `track`, `subject`, optional `topic_path` (levels separated by `>`) and optional `question`, `answer`, `difficulty` (a starter question under that topic: needs a `topic_path`; answers use blank lines for paragraphs, `- ` lists, `` `code` `` and ``` fences; repeated questions, ignoring case and spacing, are skipped); a header row, blank lines, a UTF-8 BOM, quoted cells and `,` `;` or tab delimiters are accepted; at most 20,000 rows. Adds what is missing, matching names ignoring case; never changes or deletes existing rows or users' subjects. Response `{rowsRead, tracksAdded, subjectsAdded, topicsAdded, questionsAdded, rejectedRowCount, rejectedRows}`: rows without a track or subject, a question without a topic, a bad difficulty, or too-long text, are listed (first 20, `Line n: reason`) and skipped. `400` for an unreadable CSV (for example an unclosed quote) |
 
 Until login exists the current user is user 1, who is an admin (`users.is_admin`).

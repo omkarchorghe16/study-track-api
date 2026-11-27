@@ -31,9 +31,9 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | GET | `/api/v1/status` | Service name, API version and the current user (also proves the database is reachable) |
 | GET | `/api/v1/users/me` | The current user and whether they are a catalog admin |
 | GET | `/api/v1/catalog/tracks`, `/catalog/tracks/{id}/subjects`, `/catalog/subjects/{id}/topics` | Browse the shared catalog: tracks, their subjects, a subject's topic tree |
-| POST | `/api/v1/catalog/subjects/{id}/enroll` | Copy a catalog subject and its topic tree into the user's own subjects |
+| POST | `/api/v1/catalog/subjects/{id}/enroll` | Copy a catalog subject, its topic tree and its starter questions into the user's own subjects |
 | GET | `/api/v1/catalog/template.csv` | Sample catalog CSV (`track,subject,topic_path`) |
-| POST | `/api/v1/admin/catalog/import` | Admin only: add tracks, subjects and topics from a CSV |
+| POST | `/api/v1/admin/catalog/import` | Admin only: add tracks, subjects, topics and starter questions from a CSV |
 | GET, POST | `/api/v1/subjects` | List (with topic and item counts) or create subjects |
 | GET, PUT, DELETE | `/api/v1/subjects/{id}` | Read, replace or delete a subject (delete cascades) |
 | GET | `/api/v1/subjects/{id}/topics` | The subject's topic tree with item counts |

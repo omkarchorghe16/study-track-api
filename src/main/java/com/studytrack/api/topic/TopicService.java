@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -109,19 +110,24 @@ public class TopicService {
         topicRepository.delete(findOwnedTopic(topicId));
     }
 
-    /** A topic to create with its subtopics; used to copy a catalog subject's tree. */
-    public record TopicTemplate(String name, List<TopicTemplate> children) {
+    /** A topic to create with its subtopics; {@code sourceId} identifies it in the result of {@link #copyTopicTree}. */
+    public record TopicTemplate(Long sourceId, String name, List<TopicTemplate> children) {
     }
 
-    /** Creates the templates (and their subtopics, in order) in a subject; returns how many topics were created. */
+    /**
+     * Creates the templates (and their subtopics, in order) in a subject. Returns the id of each created topic,
+     * keyed by the template's {@code sourceId}.
+     */
     @Transactional
-    public int copyTopicTree(Long subjectId, List<TopicTemplate> templates) {
+    public Map<Long, Long> copyTopicTree(Long subjectId, List<TopicTemplate> templates) {
         SubjectEntity subject = subjectService.findOwnedSubject(subjectId);
-        return saveTopicTemplates(subject.getId(), null, templates);
+        Map<Long, Long> topicIdsBySourceId = new HashMap<>();
+        saveTopicTemplates(subject.getId(), null, templates, topicIdsBySourceId);
+        return topicIdsBySourceId;
     }
 
-    private int saveTopicTemplates(Long subjectId, Long parentId, List<TopicTemplate> templates) {
-        int createdCount = 0;
+    private void saveTopicTemplates(Long subjectId, Long parentId, List<TopicTemplate> templates,
+                                    Map<Long, Long> topicIdsBySourceId) {
         int sortOrder = 0;
         for (TopicTemplate template : templates) {
             TopicEntity topic = new TopicEntity(subjectId);
@@ -130,9 +136,9 @@ public class TopicService {
             topic.setSortOrder(sortOrder);
             sortOrder++;
             TopicEntity saved = topicRepository.save(topic);
-            createdCount += 1 + saveTopicTemplates(subjectId, saved.getId(), template.children());
+            topicIdsBySourceId.put(template.sourceId(), saved.getId());
+            saveTopicTemplates(subjectId, saved.getId(), template.children(), topicIdsBySourceId);
         }
-        return createdCount;
     }
 
     /** The topic at the end of a path and how many topics had to be created for it. */

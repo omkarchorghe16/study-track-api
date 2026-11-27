@@ -20,9 +20,23 @@ public interface CatalogSubjectRepository extends JpaRepository<CatalogSubjectEn
             """, nativeQuery = true)
     List<SubjectTopicCount> countTopicsBySubject(Collection<Long> catalogSubjectIds);
 
+    /** Number of starter questions (all topics) per catalog subject, read with one grouped query. */
+    @Query(value = """
+            SELECT t.catalog_subject_id AS catalogSubjectId, COUNT(*) AS questionCount
+            FROM study_track.catalog_questions q JOIN study_track.catalog_topics t ON t.id = q.catalog_topic_id
+            WHERE t.catalog_subject_id IN (:catalogSubjectIds) GROUP BY t.catalog_subject_id
+            """, nativeQuery = true)
+    List<SubjectQuestionCount> countQuestionsBySubject(Collection<Long> catalogSubjectIds);
+
     interface SubjectTopicCount {
         Long getCatalogSubjectId();
 
         long getTopicCount();
+    }
+
+    interface SubjectQuestionCount {
+        Long getCatalogSubjectId();
+
+        long getQuestionCount();
     }
 }

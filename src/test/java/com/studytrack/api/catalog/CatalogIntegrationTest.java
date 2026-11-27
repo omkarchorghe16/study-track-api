@@ -17,6 +17,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -67,6 +70,7 @@ class CatalogIntegrationTest {
                 .andExpect(jsonPath("$.tracksAdded").value(2))
                 .andExpect(jsonPath("$.subjectsAdded").value(3))
                 .andExpect(jsonPath("$.topicsAdded").value(5))
+                .andExpect(jsonPath("$.questionsAdded").value(0))
                 .andExpect(jsonPath("$.rejectedRowCount").value(1))
                 .andExpect(jsonPath("$.rejectedRows[0]").value("Line 7: needs a track and a subject"));
 
@@ -164,6 +168,62 @@ class CatalogIntegrationTest {
     }
 
     @Test
+    void questionRowsAreImportedOnceAndRejectedWhenIncomplete() throws Exception {
+        String csv = """
+                track,subject,topic_path,question,answer,difficulty
+                Java,Core Java,Collections > HashMap,What is a HashMap?,A hash table.,easy
+                Java,Core Java,Collections > HashMap,  what   is a hashmap?,Duplicate with other spacing.,EASY
+                Java,Core Java,Collections,Needs no path check?,Has a path.,
+                Java,Core Java,,Question without a topic?,No path.,EASY
+                Java,Core Java,Collections,Bad level?,Answer.,IMPOSSIBLE
+                """;
+
+        mvc.perform(importRequest(csv))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questionsAdded").value(2))
+                .andExpect(jsonPath("$.rejectedRowCount").value(2))
+                .andExpect(jsonPath("$.rejectedRows[0]").value("Line 5: a question needs a topic_path"))
+                .andExpect(jsonPath("$.rejectedRows[1]").value("Line 6: difficulty must be EASY, MEDIUM or HARD"));
+        mvc.perform(importRequest(csv))
+                .andExpect(jsonPath("$.questionsAdded").value(0));
+    }
+
+    @Test
+    void enrollCopiesStarterQuestionsAsCatalogItemsWithFormattedHtml() throws Exception {
+        String csv = """
+                track,subject,topic_path,question,answer,difficulty
+                Java,Core Java,Collections > HashMap,How does a HashMap work?,"It uses `hashCode`.
+
+                - buckets
+                - trees",MEDIUM
+                Java,Core Java,Multithreading,What is a deadlock?,Threads wait for each other.,HARD
+                """;
+        mvc.perform(importRequest(csv)).andExpect(status().isOk());
+        String subjectsBody = mvc.perform(get("/api/v1/catalog/tracks/" + readTrackId("Java") + "/subjects"))
+                .andExpect(jsonPath("$[0].questionCount").value(2))
+                .andReturn().getResponse().getContentAsString();
+        long coreJavaId = objectMapper.readTree(subjectsBody).get(0).get("id").asLong();
+
+        String body = mvc.perform(post("/api/v1/catalog/subjects/" + coreJavaId + "/enroll"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.itemCount").value(2))
+                .andReturn().getResponse().getContentAsString();
+        long subjectId = objectMapper.readTree(body).get("id").asLong();
+
+        assertEquals(2, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM study_track.questions WHERE subject_id = ? AND source = 'CATALOG'",
+                Integer.class, subjectId));
+        String answerHtml = jdbcTemplate.queryForObject("""
+                SELECT q.answer_html FROM study_track.questions q WHERE q.subject_id = ? AND q.difficulty = 'MEDIUM'
+                """, String.class, subjectId);
+        assertTrue(answerHtml.contains("<code>hashCode</code>") && answerHtml.contains("<li>buckets</li>"), answerHtml);
+        assertEquals("HashMap", jdbcTemplate.queryForObject("""
+                SELECT t.name FROM study_track.questions q JOIN study_track.topics t ON t.id = q.topic_id
+                WHERE q.subject_id = ? AND q.difficulty = 'MEDIUM'
+                """, String.class, subjectId));
+    }
+
+    @Test
     void servesACsvTemplate() throws Exception {
         mvc.perform(get("/api/v1/catalog/template.csv"))
                 .andExpect(status().isOk())
@@ -172,16 +232,26 @@ class CatalogIntegrationTest {
     }
 
     @Test
-    void shippedSeedFilesImportWithoutRejectedRows() throws IOException {
+    void shippedSeedFilesImportWithoutRejectedRowsAndQuestionsStayUnderExistingTopics() throws IOException {
         Resource[] seedFiles = new PathMatchingResourcePatternResolver().getResources("classpath:catalog/*.csv");
-        assertTrue(seedFiles.length >= 4);
-        int tracksAdded = 0;
-        for (Resource seedFile : seedFiles) {
+        List<Resource> sortedFiles = Arrays.stream(seedFiles).sorted(Comparator.comparing(Resource::getFilename)).toList();
+        int topicFiles = 0;
+        int questionsAdded = 0;
+        for (Resource seedFile : sortedFiles) {
             CatalogImportResponse result = catalogImportService.importCatalogCsv(seedFile.getContentAsByteArray());
             assertEquals(0, result.rejectedRowCount(), seedFile.getFilename() + ": " + result.rejectedRows());
-            tracksAdded += result.tracksAdded();
+            if (seedFile.getFilename().endsWith("-questions.csv")) {
+                assertEquals(0, result.topicsAdded() + result.subjectsAdded() + result.tracksAdded(),
+                        seedFile.getFilename() + " refers to a track, subject or topic the topic files lack");
+                assertTrue(result.questionsAdded() > 0, seedFile.getFilename());
+                questionsAdded += result.questionsAdded();
+            } else {
+                assertEquals(1, result.tracksAdded(), seedFile.getFilename());
+                topicFiles++;
+            }
         }
-        assertEquals(seedFiles.length, tracksAdded);
+        assertTrue(topicFiles >= 7);
+        assertTrue(questionsAdded >= 100);
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder importRequest(String csv) {

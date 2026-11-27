@@ -26,11 +26,12 @@ import java.util.List;
 @Tag(name = "Catalog", description = "Shared tracks, subjects and topics that users can copy into their own subjects")
 public class CatalogController {
     private static final String CSV_TEMPLATE = """
-            track,subject,topic_path
-            Full-Stack Java Developer,Core Java,Collections
-            Full-Stack Java Developer,Core Java,Collections > HashMap
-            Full-Stack Java Developer,Core Java,Multithreading
-            Full-Stack Java Developer,Spring Boot,
+            track,subject,topic_path,question,answer,difficulty
+            Full-Stack Java Developer,Core Java,Collections,,,
+            Full-Stack Java Developer,Core Java,Collections > HashMap,,,
+            Full-Stack Java Developer,Core Java,Collections > HashMap,What is the default load factor of a HashMap?,"0.75: the table doubles in size when it is 75% full.",EASY
+            Full-Stack Java Developer,Core Java,Multithreading,,,
+            Full-Stack Java Developer,Spring Boot,,,,
             """;
 
     private final CatalogService catalogService;
@@ -62,7 +63,7 @@ public class CatalogController {
 
     @PostMapping("/subjects/{catalogSubjectId}/enroll")
     @Operation(summary = "Add a catalog subject to my subjects",
-            description = "Creates the user's own subject with a copy of the whole topic tree.")
+            description = "Creates the user's own subject with a copy of the whole topic tree and its starter questions.")
     @ApiResponse(responseCode = "201", description = "Created")
     @ApiResponse(responseCode = "404", description = "No such catalog subject")
     @ApiResponse(responseCode = "409", description = "Already added, or the user has a subject with this name")
@@ -73,7 +74,8 @@ public class CatalogController {
 
     @GetMapping("/template.csv")
     @Operation(summary = "Download a sample catalog CSV",
-            description = "Columns: track, subject, topic_path (levels separated by \">\"). An admin uploads such a file.")
+            description = "Columns: track, subject, topic_path (levels separated by \">\"), and optionally question, answer, "
+                    + "difficulty for a starter question. An admin uploads such a file.")
     public ResponseEntity<byte[]> getCsvTemplate() {
         return ResponseEntity.ok()
                 .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))

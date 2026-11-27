@@ -103,6 +103,22 @@ public class ItemService {
         return createItem(request, StudyItemEntity.fromImport(importJobId));
     }
 
+    /** A question copied from the shared catalog; the HTML is cleaned like every other item. */
+    public record CatalogQuestionTemplate(String title, String questionHtml, String answerHtml,
+                                          Difficulty difficulty) {
+    }
+
+    /** Creates the questions in the topic after its existing items, source CATALOG; returns how many were created. */
+    @Transactional
+    public int createCatalogQuestions(Long topicId, List<CatalogQuestionTemplate> questions) {
+        for (CatalogQuestionTemplate question : questions) {
+            ItemRequest request = new ItemRequest(topicId, ItemType.QUESTION, question.title(),
+                    question.questionHtml(), question.answerHtml(), null, question.difficulty(), List.of(), null);
+            createItem(request, new StudyItemEntity(ItemSource.CATALOG));
+        }
+        return questions.size();
+    }
+
     /**
      * Ids of existing items in the subject with the given content hashes ({@link ItemContent#computeContentHash}),
      * keyed by hash; used to flag duplicate import candidates.

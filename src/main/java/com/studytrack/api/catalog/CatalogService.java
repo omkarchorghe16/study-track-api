@@ -3,6 +3,8 @@ package com.studytrack.api.catalog;
 import com.studytrack.api.catalog.CatalogDtos.CatalogSubjectResponse;
 import com.studytrack.api.catalog.CatalogDtos.CatalogTopicNodeResponse;
 import com.studytrack.api.catalog.CatalogDtos.CatalogTrackResponse;
+import com.studytrack.api.item.ItemService;
+import com.studytrack.api.item.ItemService.CatalogQuestionTemplate;
 import com.studytrack.api.subject.SubjectDtos.SubjectResponse;
 import com.studytrack.api.subject.SubjectService;
 import com.studytrack.api.topic.TopicService;
@@ -20,21 +22,28 @@ import java.util.stream.Collectors;
 /** Browsing the shared catalog and copying one of its subjects into the current user's subjects. */
 @Service
 public class CatalogService {
+    private static final int MAX_TITLE_LENGTH = 300;
+
     private final CatalogTrackRepository catalogTrackRepository;
     private final CatalogSubjectRepository catalogSubjectRepository;
     private final CatalogTopicRepository catalogTopicRepository;
+    private final CatalogQuestionRepository catalogQuestionRepository;
     private final SubjectService subjectService;
     private final TopicService topicService;
+    private final ItemService itemService;
 
     public CatalogService(CatalogTrackRepository catalogTrackRepository,
                           CatalogSubjectRepository catalogSubjectRepository,
-                          CatalogTopicRepository catalogTopicRepository, SubjectService subjectService,
-                          TopicService topicService) {
+                          CatalogTopicRepository catalogTopicRepository,
+                          CatalogQuestionRepository catalogQuestionRepository, SubjectService subjectService,
+                          TopicService topicService, ItemService itemService) {
         this.catalogTrackRepository = catalogTrackRepository;
         this.catalogSubjectRepository = catalogSubjectRepository;
         this.catalogTopicRepository = catalogTopicRepository;
+        this.catalogQuestionRepository = catalogQuestionRepository;
         this.subjectService = subjectService;
         this.topicService = topicService;
+        this.itemService = itemService;
     }
 
     @Transactional(readOnly = true)
@@ -64,11 +73,15 @@ public class CatalogService {
                 : catalogSubjectRepository.countTopicsBySubject(subjectIds).stream()
                 .collect(Collectors.toMap(CatalogSubjectRepository.SubjectTopicCount::getCatalogSubjectId,
                         CatalogSubjectRepository.SubjectTopicCount::getTopicCount));
+        Map<Long, Long> questionCounts = subjectIds.isEmpty() ? Map.of()
+                : catalogSubjectRepository.countQuestionsBySubject(subjectIds).stream()
+                .collect(Collectors.toMap(CatalogSubjectRepository.SubjectQuestionCount::getCatalogSubjectId,
+                        CatalogSubjectRepository.SubjectQuestionCount::getQuestionCount));
         Map<Long, Long> copiedSubjectIds = subjectService.mapCopiedSubjects(subjectIds);
         return subjects.stream()
                 .map(subject -> new CatalogSubjectResponse(subject.getId(), subject.getTrackId(), subject.getName(),
                         subject.getDescription(), subject.getIcon(), topicCounts.getOrDefault(subject.getId(), 0L),
-                        copiedSubjectIds.get(subject.getId())))
+                        questionCounts.getOrDefault(subject.getId(), 0L), copiedSubjectIds.get(subject.getId())))
                 .toList();
     }
 
@@ -80,16 +93,42 @@ public class CatalogService {
     }
 
     /**
-     * Copies a catalog subject and its whole topic tree into the current user's subjects. The user's copy is
-     * independent: later catalog changes do not touch it. Fails with 409 when the user already added it.
+     * Copies a catalog subject, its whole topic tree and its starter questions into the current user's subjects.
+     * The user's copy is independent: later catalog changes do not touch it. Fails with 409 when the user
+     * already added it.
      */
     @Transactional
     public SubjectResponse enrollInSubject(Long catalogSubjectId) {
         CatalogSubjectEntity catalogSubject = findCatalogSubject(catalogSubjectId);
         SubjectResponse subject = subjectService.createSubjectFromCatalog(catalogSubject.getId(),
                 catalogSubject.getName(), catalogSubject.getDescription(), catalogSubject.getIcon());
-        topicService.copyTopicTree(subject.id(), buildTemplates(readTopicsByParent(catalogSubjectId), 0L));
+        List<CatalogTopicEntity> catalogTopics =
+                catalogTopicRepository.findByCatalogSubjectIdOrderBySortOrderAscIdAsc(catalogSubjectId);
+        Map<Long, Long> topicIdsByCatalogTopicId =
+                topicService.copyTopicTree(subject.id(), buildTemplates(groupByParent(catalogTopics), 0L));
+        copyQuestions(catalogTopics, topicIdsByCatalogTopicId);
         return subjectService.getSubject(subject.id());
+    }
+
+    private void copyQuestions(List<CatalogTopicEntity> catalogTopics, Map<Long, Long> topicIdsByCatalogTopicId) {
+        if (catalogTopics.isEmpty()) {
+            return;
+        }
+        Map<Long, List<CatalogQuestionEntity>> questionsByTopicId = catalogQuestionRepository
+                .findByCatalogTopicIdInOrderBySortOrderAscIdAsc(
+                        catalogTopics.stream().map(CatalogTopicEntity::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(CatalogQuestionEntity::getCatalogTopicId));
+        questionsByTopicId.forEach((catalogTopicId, questions) -> itemService.createCatalogQuestions(
+                topicIdsByCatalogTopicId.get(catalogTopicId), questions.stream().map(this::toQuestionTemplate).toList()));
+    }
+
+    private CatalogQuestionTemplate toQuestionTemplate(CatalogQuestionEntity question) {
+        String title = question.getQuestion().length() > MAX_TITLE_LENGTH
+                ? question.getQuestion().substring(0, MAX_TITLE_LENGTH)
+                : question.getQuestion();
+        return new CatalogQuestionTemplate(title, CatalogAnswerFormatter.formatToHtml(question.getQuestion()),
+                CatalogAnswerFormatter.formatToHtml(question.getAnswer()), question.getDifficulty());
     }
 
     private CatalogSubjectEntity findCatalogSubject(Long catalogSubjectId) {
@@ -98,7 +137,11 @@ public class CatalogService {
     }
 
     private Map<Long, List<CatalogTopicEntity>> readTopicsByParent(Long catalogSubjectId) {
-        return catalogTopicRepository.findByCatalogSubjectIdOrderBySortOrderAscIdAsc(catalogSubjectId).stream()
+        return groupByParent(catalogTopicRepository.findByCatalogSubjectIdOrderBySortOrderAscIdAsc(catalogSubjectId));
+    }
+
+    private static Map<Long, List<CatalogTopicEntity>> groupByParent(List<CatalogTopicEntity> topics) {
+        return topics.stream()
                 .collect(Collectors.groupingBy(topic -> Objects.requireNonNullElse(topic.getParentId(), 0L)));
     }
 
@@ -114,7 +157,7 @@ public class CatalogService {
 
     private List<TopicTemplate> buildTemplates(Map<Long, List<CatalogTopicEntity>> topicsByParent, Long parentKey) {
         return topicsByParent.getOrDefault(parentKey, List.of()).stream()
-                .map(topic -> new TopicTemplate(topic.getName(), buildTemplates(topicsByParent, topic.getId())))
+                .map(topic -> new TopicTemplate(topic.getId(), topic.getName(), buildTemplates(topicsByParent, topic.getId())))
                 .toList();
     }
 }

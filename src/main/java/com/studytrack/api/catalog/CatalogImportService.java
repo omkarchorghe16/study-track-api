@@ -2,6 +2,7 @@ package com.studytrack.api.catalog;
 
 import com.studytrack.api.catalog.CatalogCsvReader.CatalogCsvRow;
 import com.studytrack.api.catalog.CatalogDtos.CatalogImportResponse;
+import com.studytrack.api.item.Difficulty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,20 +25,25 @@ public class CatalogImportService {
     private static final int MAX_TRACK_NAME_LENGTH = 120;
     private static final int MAX_SUBJECT_NAME_LENGTH = 120;
     private static final int MAX_TOPIC_NAME_LENGTH = 200;
+    private static final int MAX_QUESTION_LENGTH = 1000;
+    private static final int MAX_ANSWER_LENGTH = 20000;
     private static final int MAX_REJECTED_MESSAGES = 20;
 
     private final CatalogCsvReader catalogCsvReader;
     private final CatalogTrackRepository catalogTrackRepository;
     private final CatalogSubjectRepository catalogSubjectRepository;
     private final CatalogTopicRepository catalogTopicRepository;
+    private final CatalogQuestionRepository catalogQuestionRepository;
 
     public CatalogImportService(CatalogCsvReader catalogCsvReader, CatalogTrackRepository catalogTrackRepository,
                                 CatalogSubjectRepository catalogSubjectRepository,
-                                CatalogTopicRepository catalogTopicRepository) {
+                                CatalogTopicRepository catalogTopicRepository,
+                                CatalogQuestionRepository catalogQuestionRepository) {
         this.catalogCsvReader = catalogCsvReader;
         this.catalogTrackRepository = catalogTrackRepository;
         this.catalogSubjectRepository = catalogSubjectRepository;
         this.catalogTopicRepository = catalogTopicRepository;
+        this.catalogQuestionRepository = catalogQuestionRepository;
     }
 
     /** Imports every usable row in one transaction; unusable rows are reported, not fatal. */
@@ -54,7 +60,10 @@ public class CatalogImportService {
             CatalogTrackEntity track = run.findOrCreateTrack(row.track());
             CatalogSubjectEntity subject = run.findOrCreateSubject(track, row.subject());
             if (row.topicPath() != null) {
-                run.addTopicPath(subject, splitTopicPath(row.topicPath()));
+                CatalogTopicEntity topic = run.addTopicPath(subject, splitTopicPath(row.topicPath()));
+                if (row.question() != null && topic != null) {
+                    run.addQuestion(topic, row);
+                }
             }
         }
         return run.toResponse(rows.size());
@@ -63,6 +72,18 @@ public class CatalogImportService {
     private static String findRowProblem(CatalogCsvRow row) {
         if (row.track() == null || row.subject() == null) {
             return "needs a track and a subject";
+        }
+        if (row.question() != null && (row.topicPath() == null || splitTopicPath(row.topicPath()).isEmpty())) {
+            return "a question needs a topic_path";
+        }
+        if (row.question() != null && row.question().length() > MAX_QUESTION_LENGTH) {
+            return "the question is longer than " + MAX_QUESTION_LENGTH + " characters";
+        }
+        if (row.answer() != null && row.answer().length() > MAX_ANSWER_LENGTH) {
+            return "the answer is longer than " + MAX_ANSWER_LENGTH + " characters";
+        }
+        if (row.difficulty() != null && parseDifficulty(row.difficulty()) == null) {
+            return "difficulty must be EASY, MEDIUM or HARD";
         }
         if (row.track().length() > MAX_TRACK_NAME_LENGTH || row.subject().length() > MAX_SUBJECT_NAME_LENGTH) {
             return "track or subject name is longer than " + MAX_SUBJECT_NAME_LENGTH + " characters";
@@ -81,8 +102,21 @@ public class CatalogImportService {
                 .toList();
     }
 
+    /** The difficulty named by the text (ignoring case), or null when it is not one of them. */
+    private static Difficulty parseDifficulty(String text) {
+        try {
+            return Difficulty.valueOf(text.strip().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
     private static String keyOf(String name) {
         return name.toLowerCase(Locale.ROOT);
+    }
+
+    private static String normalizeSpaces(String text) {
+        return text.strip().replaceAll("\\s+", " ");
     }
 
     /** State of one import: what exists (loaded once per track or subject) and what was added. */
@@ -90,11 +124,13 @@ public class CatalogImportService {
         private final Map<String, CatalogTrackEntity> tracksByName = new HashMap<>();
         private final Map<Long, List<CatalogSubjectEntity>> subjectsByTrackId = new HashMap<>();
         private final Map<Long, List<CatalogTopicEntity>> topicsBySubjectId = new HashMap<>();
+        private final Map<Long, List<CatalogQuestionEntity>> questionsByTopicId = new HashMap<>();
         private final List<String> rejectedMessages = new ArrayList<>();
         private int rejectedRowCount;
         private int tracksAdded;
         private int subjectsAdded;
         private int topicsAdded;
+        private int questionsAdded;
 
         ImportRun() {
             for (CatalogTrackEntity track : catalogTrackRepository.findAllByOrderBySortOrderAscNameAsc()) {
@@ -139,15 +175,34 @@ public class CatalogImportService {
             return created;
         }
 
-        void addTopicPath(CatalogSubjectEntity subject, List<String> names) {
+        /** Creates what is missing of the path and returns its last topic, or null for an empty path. */
+        CatalogTopicEntity addTopicPath(CatalogSubjectEntity subject, List<String> names) {
             List<CatalogTopicEntity> topics = topicsBySubjectId.computeIfAbsent(subject.getId(),
                     subjectId -> new ArrayList<>(
                             catalogTopicRepository.findByCatalogSubjectIdOrderBySortOrderAscIdAsc(subjectId)));
-            Long parentId = null;
+            CatalogTopicEntity topic = null;
             for (String name : names) {
-                CatalogTopicEntity topic = findOrCreateTopic(subject.getId(), topics, parentId, name);
-                parentId = topic.getId();
+                topic = findOrCreateTopic(subject.getId(), topics, topic == null ? null : topic.getId(), name);
             }
+            return topic;
+        }
+
+        void addQuestion(CatalogTopicEntity topic, CatalogCsvRow row) {
+            List<CatalogQuestionEntity> questions = questionsByTopicId.computeIfAbsent(topic.getId(),
+                    topicId -> new ArrayList<>(
+                            catalogQuestionRepository.findByCatalogTopicIdOrderBySortOrderAscIdAsc(topicId)));
+            String normalizedQuestion = normalizeSpaces(row.question());
+            int nextSortOrder = 0;
+            for (CatalogQuestionEntity existing : questions) {
+                if (normalizeSpaces(existing.getQuestion()).equalsIgnoreCase(normalizedQuestion)) {
+                    return;
+                }
+                nextSortOrder = Math.max(nextSortOrder, existing.getSortOrder() + 1);
+            }
+            Difficulty difficulty = row.difficulty() == null ? Difficulty.MEDIUM : parseDifficulty(row.difficulty());
+            questions.add(catalogQuestionRepository.save(new CatalogQuestionEntity(topic.getId(), row.question(),
+                    row.answer(), difficulty, nextSortOrder)));
+            questionsAdded++;
         }
 
         private CatalogTopicEntity findOrCreateTopic(Long subjectId, List<CatalogTopicEntity> topics, Long parentId,
@@ -170,8 +225,8 @@ public class CatalogImportService {
         }
 
         CatalogImportResponse toResponse(int rowsRead) {
-            return new CatalogImportResponse(rowsRead, tracksAdded, subjectsAdded, topicsAdded, rejectedRowCount,
-                    List.copyOf(rejectedMessages));
+            return new CatalogImportResponse(rowsRead, tracksAdded, subjectsAdded, topicsAdded, questionsAdded,
+                    rejectedRowCount, List.copyOf(rejectedMessages));
         }
     }
 }

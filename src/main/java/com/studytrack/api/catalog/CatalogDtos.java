@@ -12,7 +12,7 @@ public final class CatalogDtos {
 
     /** @param copiedSubjectId id of the user's own subject when the user already added this one, else null */
     public record CatalogSubjectResponse(Long id, Long trackId, String name, String description, String icon,
-                                         long topicCount, Long copiedSubjectId) {
+                                         long topicCount, long questionCount, Long copiedSubjectId) {
     }
 
     public record CatalogTopicNodeResponse(Long id, String name, List<CatalogTopicNodeResponse> children) {
@@ -23,6 +23,6 @@ public final class CatalogDtos {
      * @param rejectedRows why rows were skipped, one line each, at most the first 20
      */
     public record CatalogImportResponse(int rowsRead, int tracksAdded, int subjectsAdded, int topicsAdded,
-                                        int rejectedRowCount, List<String> rejectedRows) {
+                                        int questionsAdded, int rejectedRowCount, List<String> rejectedRows) {
     }
 }
