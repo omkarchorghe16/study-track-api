@@ -14,10 +14,15 @@ spring:
       ddl-auto: validate
     open-in-view: false
     properties:
+      # Every table lives in the study_track schema (V10); native SQL names it explicitly.
+      hibernate.default_schema: study_track
       # Loads lazy collections (item tags) for a whole page in one query instead of one per item.
       hibernate.default_batch_fetch_size: 50
   flyway:
     enabled: true
+    # Keep Flyway's history table in "public" (V10). Without this, Flyway follows the connection's
+    # current schema, which becomes "study_track" once that schema exists ("$user" in search_path).
+    default-schema: public
   jackson:
     default-property-inclusion: non_null
   servlet:

@@ -37,8 +37,8 @@ class TopicIntegrationTest {
 
     @BeforeEach
     void resetData() throws Exception {
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
         api = new StudyApiClient(mvc, objectMapper);
         subjectId = api.createSubject("Spring Boot");
     }
@@ -119,6 +119,6 @@ class TopicIntegrationTest {
         mvc.perform(delete("/api/v1/topics/" + parent)).andExpect(status().isNoContent());
 
         mvc.perform(get("/api/v1/topics/" + child)).andExpect(status().isNotFound());
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_items", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.questions", Integer.class));
     }
 }

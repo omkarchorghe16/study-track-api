@@ -17,13 +17,13 @@ import java.util.List;
 
 /** A question, note or example found by the LLM, waiting for review. HTML fields are already sanitised. */
 @Entity
-@Table(name = "import_candidates")
+@Table(name = "import_drafts")
 public class ImportCandidateEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "job_id", nullable = false, updatable = false)
+    @Column(name = "import_job_id", nullable = false, updatable = false)
     private Long jobId;
 
     @Column(name = "chunk_index", nullable = false, updatable = false)
@@ -33,7 +33,7 @@ public class ImportCandidateEntity {
     private String suggestedTopicPath;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "item_type", nullable = false, length = 20)
+    @Column(name = "question_type", nullable = false, length = 20)
     private ItemType itemType;
 
     @Column(nullable = false, length = 300)
@@ -55,7 +55,7 @@ public class ImportCandidateEntity {
     @Column(length = 1000)
     private String tags;
 
-    @Column(name = "image_refs", length = 1000)
+    @Column(name = "image_media_ids", length = 1000)
     private String imageRefs;
 
     @Column(name = "confidence_score", precision = 4, scale = 3)
@@ -71,7 +71,7 @@ public class ImportCandidateEntity {
     @Column(name = "target_topic_id")
     private Long targetTopicId;
 
-    @Column(name = "created_item_id")
+    @Column(name = "created_question_id")
     private Long createdItemId;
 
     @Column(name = "sort_order", nullable = false)

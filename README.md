@@ -15,7 +15,7 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | 2 | Subjects, topics, items (CRUD) | **done** |
 | 3 | Media and rich content | **done** |
 | 4 | Progress tracking, dashboard numbers, flashcards | **done** |
-| 5 | LLM import (Anthropic, OpenAI, Groq, Ollama) with review before anything is saved | **done** |
+| 5 | LLM import (Anthropic, OpenAI, Groq, Ollama) and CSV import; questions are saved at once, duplicates skipped | **done** |
 | 6 | Search, duplicate check, unused image cleanup (UI: shortcuts, toasts, theme) | **done** |
 | 7 | Accounts and deployment | deferred |
 
@@ -48,7 +48,7 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | GET | `/api/v1/reviews/due?subjectId=` | Flashcards due today, then new items |
 | GET | `/api/v1/sessions/resume?subjectId=`, PUT `/api/v1/sessions` | Read or save where the user left off |
 | GET | `/api/v1/stats/overview` | Dashboard numbers: totals, per subject, due today, streak, 30-day activity |
-| POST, GET | `/api/v1/imports` | Start an import (multipart `file` .docx/.pdf/.md/.txt ≤20 MB + `subjectId`, `202`) or list recent ones |
+| POST, GET | `/api/v1/imports` | Start an import (multipart `file` .docx/.pdf/.md/.txt/.csv ≤20 MB + `subjectId`; CSV = question, answer, optional topic, read without an LLM, `202`) or list recent ones |
 | GET | `/api/v1/imports/{id}` | Import status and progress (poll while running) |
 | GET | `/api/v1/imports/{id}/candidates`, PUT `…/candidates/{cid}` | Review and edit what the LLM found |
 | POST | `/api/v1/imports/{id}/approve`, `/reject` | Turn candidates into items (creating topics) or drop them |

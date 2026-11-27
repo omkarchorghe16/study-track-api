@@ -36,7 +36,7 @@ public class ImportJobEntity {
     @Column(name = "file_type", nullable = false, length = 10)
     private ImportFileType fileType;
 
-    @Column(name = "media_id")
+    @Column(name = "uploaded_file_id")
     private Long mediaId;
 
     @Enumerated(EnumType.STRING)
@@ -44,10 +44,10 @@ public class ImportJobEntity {
     private ImportJobStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "llm_provider", nullable = false, length = 20)
+    @Column(name = "llm_provider", length = 20)
     private LlmProvider llmProvider;
 
-    @Column(name = "llm_model", nullable = false, length = 100)
+    @Column(name = "llm_model", length = 100)
     private String llmModel;
 
     @Column(name = "total_chunks", nullable = false)

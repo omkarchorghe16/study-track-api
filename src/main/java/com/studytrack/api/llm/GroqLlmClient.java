@@ -17,6 +17,9 @@ import java.util.List;
  *   <li>A rate-limited call (HTTP 429, usually the free tier's tokens per minute) waits for the
  *       {@code Retry-After} time, at most {@value #MAX_WAIT_SECONDS} s, and is sent again, up to
  *       {@value #MAX_RATE_LIMIT_WAITS} times, so a long document is processed slowly instead of failing.</li>
+ *   <li>When the model's output does not match the JSON Schema, Groq answers HTTP 400
+ *       {@code json_validate_failed} instead of returning the text. That is sent once more (generation varies),
+ *       then reported as {@link LlmException.Reason#INVALID_ANSWER}, so the import skips this part only.</li>
  *   <li>Model ids contain a slash ({@code openai/gpt-oss-120b}), so the connection test looks the model up
  *       in {@code GET /v1/models} instead of calling {@code GET /v1/models/{model}}.</li>
  * </ul>
@@ -55,6 +58,7 @@ public class GroqLlmClient extends OpenAiLlmClient {
     @Override
     protected ChatResponse sendChatRequest(ChatRequest body) {
         int waits = 0;
+        boolean resentInvalidJson = false;
         while (true) {
             try {
                 return super.sendChatRequest(body);
@@ -64,8 +68,22 @@ public class GroqLlmClient extends OpenAiLlmClient {
                 }
                 waits++;
                 pauseFor(readRetryAfter(rateLimited));
+            } catch (HttpClientErrorException.BadRequest badRequest) {
+                if (!isJsonValidationFailure(badRequest)) {
+                    throw badRequest;
+                }
+                if (resentInvalidJson) {
+                    throw new LlmException(LlmException.Reason.INVALID_ANSWER,
+                            "Groq could not produce valid JSON for this part of the document", badRequest);
+                }
+                resentInvalidJson = true;
             }
         }
+    }
+
+    /** Groq's error code when the generated text does not match the requested JSON Schema. */
+    private static boolean isJsonValidationFailure(HttpClientErrorException badRequest) {
+        return badRequest.getResponseBodyAsString().contains("json_validate_failed");
     }
 
     @Override

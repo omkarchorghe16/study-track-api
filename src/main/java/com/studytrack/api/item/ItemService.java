@@ -9,9 +9,12 @@ import com.studytrack.api.item.ItemDtos.ItemRequest;
 import com.studytrack.api.item.ItemDtos.ItemResponse;
 import com.studytrack.api.item.ItemDtos.ItemSummaryResponse;
 import com.studytrack.api.media.MediaService;
+import com.studytrack.api.subject.SubjectEntity;
+import com.studytrack.api.subject.SubjectService;
 import com.studytrack.api.topic.TopicEntity;
 import com.studytrack.api.topic.TopicService;
 import com.studytrack.api.user.CurrentUser;
+import java.util.HashMap;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -35,16 +38,18 @@ public class ItemService {
     private final StudyItemRepository studyItemRepository;
     private final TagRepository tagRepository;
     private final TopicService topicService;
+    private final SubjectService subjectService;
     private final MediaService mediaService;
     private final HtmlSanitizer htmlSanitizer;
     private final CurrentUser currentUser;
 
     public ItemService(StudyItemRepository studyItemRepository, TagRepository tagRepository,
-                       TopicService topicService, MediaService mediaService, HtmlSanitizer htmlSanitizer,
-                       CurrentUser currentUser) {
+                       TopicService topicService, SubjectService subjectService, MediaService mediaService,
+                       HtmlSanitizer htmlSanitizer, CurrentUser currentUser) {
         this.studyItemRepository = studyItemRepository;
         this.tagRepository = tagRepository;
         this.topicService = topicService;
+        this.subjectService = subjectService;
         this.mediaService = mediaService;
         this.htmlSanitizer = htmlSanitizer;
         this.currentUser = currentUser;
@@ -58,6 +63,21 @@ public class ItemService {
         long userId = currentUser.getUserId();
         Page<StudyItemEntity> items = studyItemRepository.findTopicItems(topic.getId(), difficulty, tagName, status,
                 status == ItemStatus.NOT_STARTED, userId, PageRequest.of(page, size));
+        return toPage(items, page, size);
+    }
+
+    /** One page of the items of all the subject's topics, ordered by topic, then item. */
+    @Transactional(readOnly = true)
+    public ItemPageResponse listSubjectItems(Long subjectId, Difficulty difficulty, String tag, ItemStatus status,
+                                            int page, int size) {
+        SubjectEntity subject = subjectService.findOwnedSubject(subjectId);
+        String tagName = tag == null || tag.isBlank() ? null : normalizeTag(tag);
+        Page<StudyItemEntity> items = studyItemRepository.findSubjectItems(subject.getId(), difficulty, tagName, status,
+                status == ItemStatus.NOT_STARTED, currentUser.getUserId(), PageRequest.of(page, size));
+        return toPage(items, page, size);
+    }
+
+    private ItemPageResponse toPage(Page<StudyItemEntity> items, int page, int size) {
         Map<Long, ItemProgressResponse> progressByItem = findProgress(
                 items.getContent().stream().map(StudyItemEntity::getId).toList());
         List<ItemSummaryResponse> summaries = items.getContent().stream()
@@ -178,7 +198,7 @@ public class ItemService {
         String title = request.title().strip();
         String questionHtml = htmlSanitizer.sanitizeHtml(request.questionHtml());
         String answerHtml = htmlSanitizer.sanitizeHtml(request.answerHtml());
-        item.setTopicId(topic.getId());
+        item.placeInTopic(topic.getId(), topic.getSubjectId(), currentUser.getUserId());
         item.setItemType(request.itemType());
         item.setTitle(title);
         item.setQuestionHtml(questionHtml);
@@ -215,6 +235,14 @@ public class ItemService {
 
     private static List<String> sortedTagNames(StudyItemEntity item) {
         return item.getTags().stream().map(TagEntity::getName).sorted().toList();
+    }
+
+    /** The current user's status of each item (items without progress are left out, meaning NOT_STARTED). */
+    @Transactional(readOnly = true)
+    public Map<Long, ItemStatus> findItemStatuses(List<Long> itemIds) {
+        Map<Long, ItemStatus> statuses = new HashMap<>();
+        findProgress(itemIds).forEach((itemId, progress) -> statuses.put(itemId, progress.status()));
+        return statuses;
     }
 
     private Map<Long, ItemProgressResponse> findProgress(List<Long> itemIds) {

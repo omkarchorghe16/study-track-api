@@ -15,7 +15,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_progress")
+@Table(name = "question_progress")
 public class ItemProgressEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,7 +24,7 @@ public class ItemProgressEntity {
     @Column(name = "user_id", nullable = false, updatable = false)
     private Long userId;
 
-    @Column(name = "item_id", nullable = false, updatable = false)
+    @Column(name = "question_id", nullable = false, updatable = false)
     private Long itemId;
 
     @Enumerated(EnumType.STRING)

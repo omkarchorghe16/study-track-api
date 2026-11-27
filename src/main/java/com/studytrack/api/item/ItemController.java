@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.util.List;
 
-/** Study item routes; a topic's items are listed under the topic, everything else under {@code /items}. */
+/** Study item routes; a topic's or subject's items are listed under it, everything else under {@code /items}. */
 @RestController
 @Validated
 @RequestMapping("/api/v1")
@@ -50,6 +50,19 @@ public class ItemController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return itemService.listTopicItems(topicId, difficulty, tag, status, page, size);
+    }
+
+    @GetMapping("/subjects/{subjectId}/items")
+    @Operation(summary = "List a subject's items", description = "One page of the items of all the subject's topics, ordered by topic and then item, with the current user's status. Each item carries its topicId.")
+    @ApiResponse(responseCode = "404", description = "No such subject for the current user")
+    public ItemPageResponse listSubjectItems(
+            @PathVariable Long subjectId,
+            @Parameter(description = "Only items with this difficulty") @RequestParam(required = false) Difficulty difficulty,
+            @Parameter(description = "Only items with this tag (case-insensitive)") @RequestParam(required = false) String tag,
+            @Parameter(description = "Only items with this study status") @RequestParam(required = false) ItemStatus status,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return itemService.listSubjectItems(subjectId, difficulty, tag, status, page, size);
     }
 
     @GetMapping("/items/{itemId}")

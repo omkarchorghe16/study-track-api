@@ -34,7 +34,7 @@ class LlmSettingsIntegrationTest {
 
     @BeforeEach
     void resetData() {
-        jdbcTemplate.update("DELETE FROM llm_settings");
+        jdbcTemplate.update("DELETE FROM study_track.llm_settings");
         fakeLlm.reset();
     }
 
@@ -72,7 +72,7 @@ class LlmSettingsIntegrationTest {
                         .content("{\"provider\":\"OPENAI\",\"model\":\"gpt-4o-mini\",\"baseUrl\":\"\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.baseUrl").value("https://api.openai.com"));
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM llm_settings", Integer.class));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.llm_settings", Integer.class));
     }
 
     @Test

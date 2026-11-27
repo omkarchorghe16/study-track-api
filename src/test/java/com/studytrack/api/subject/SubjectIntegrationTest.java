@@ -36,9 +36,9 @@ class SubjectIntegrationTest {
 
     @BeforeEach
     void resetData() {
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
-        jdbcTemplate.update("DELETE FROM users WHERE id <> 1");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
+        jdbcTemplate.update("DELETE FROM study_track.users WHERE id <> 1");
         api = new StudyApiClient(mvc, objectMapper);
     }
 
@@ -98,15 +98,15 @@ class SubjectIntegrationTest {
         mvc.perform(delete("/api/v1/subjects/" + subjectId)).andExpect(status().isNoContent());
 
         mvc.perform(get("/api/v1/subjects/" + subjectId)).andExpect(status().isNotFound());
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM topics", Integer.class));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_items", Integer.class));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_item_tags", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.topics", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.questions", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.question_tags", Integer.class));
     }
 
     @Test
     void hidesOtherUsersSubjects() throws Exception {
-        jdbcTemplate.update("INSERT INTO users (id, display_name, email) VALUES (2, 'Other', 'other@example.test')");
-        jdbcTemplate.update("INSERT INTO subjects (id, user_id, name) VALUES (900, 2, 'Not mine')");
+        jdbcTemplate.update("INSERT INTO study_track.users (id, display_name, email) VALUES (2, 'Other', 'other@example.test')");
+        jdbcTemplate.update("INSERT INTO study_track.subjects (id, user_id, name) VALUES (900, 2, 'Not mine')");
 
         mvc.perform(get("/api/v1/subjects")).andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get("/api/v1/subjects/900")).andExpect(status().isNotFound());

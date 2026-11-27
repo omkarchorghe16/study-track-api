@@ -11,7 +11,7 @@ import java.time.Instant;
 
 /** Where the user left off in one subject. */
 @Entity
-@Table(name = "study_sessions")
+@Table(name = "resume_points")
 public class StudySessionEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,7 +26,7 @@ public class StudySessionEntity {
     @Column(name = "last_topic_id")
     private Long lastTopicId;
 
-    @Column(name = "last_item_id")
+    @Column(name = "last_question_id")
     private Long lastItemId;
 
     @Column(name = "updated_at", nullable = false)

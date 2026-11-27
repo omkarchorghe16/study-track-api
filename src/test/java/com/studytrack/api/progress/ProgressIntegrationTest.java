@@ -49,10 +49,10 @@ class ProgressIntegrationTest {
 
     @BeforeEach
     void resetData() throws Exception {
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
-        jdbcTemplate.update("INSERT INTO users (id, display_name, email) SELECT 2, 'Other', 'other@study-track.local' "
-                + "WHERE NOT EXISTS (SELECT 1 FROM users WHERE id = 2)");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
+        jdbcTemplate.update("INSERT INTO study_track.users (id, display_name, email) SELECT 2, 'Other', 'other@study-track.local' "
+                + "WHERE NOT EXISTS (SELECT 1 FROM study_track.users WHERE id = 2)");
         api = new StudyApiClient(mvc, objectMapper);
         subjectId = api.createSubject("Java");
         topicId = api.createTopic(subjectId, null, "Collections");
@@ -153,7 +153,7 @@ class ProgressIntegrationTest {
         JsonNode again = review(firstItemId, "AGAIN");
         assertEquals("LEARNING", again.get("progress").get("status").asText());
         assertEquals(1, again.get("intervalDays").asLong());
-        assertEquals(4, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM review_log WHERE item_id = ?",
+        assertEquals(4, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.flashcard_reviews WHERE question_id = ?",
                 Integer.class, firstItemId));
 
         mvc.perform(post("/api/v1/reviews").contentType(MediaType.APPLICATION_JSON)
@@ -166,7 +166,7 @@ class ProgressIntegrationTest {
     @Test
     void dueListHasOverdueFirstThenNewItemsAndSkipsFutureAndDone() throws Exception {
         review(firstItemId, "GOOD");
-        jdbcTemplate.update("UPDATE item_progress SET next_review_at = ? WHERE item_id = ?",
+        jdbcTemplate.update("UPDATE study_track.question_progress SET next_review_at = ? WHERE question_id = ?",
                 Timestamp.from(Instant.now().minus(Duration.ofDays(2))), firstItemId);
         review(secondItemId, "EASY");
         patchProgress(subtopicItemId, "{\"status\":\"DONE\"}");
@@ -219,9 +219,9 @@ class ProgressIntegrationTest {
 
     @Test
     void otherUsersRecordsAreNotFound() throws Exception {
-        jdbcTemplate.update("INSERT INTO subjects (id, user_id, name) VALUES (9001, 2, 'Theirs')");
-        jdbcTemplate.update("INSERT INTO topics (id, subject_id, name) VALUES (9001, 9001, 'Their topic')");
-        jdbcTemplate.update("INSERT INTO study_items (id, topic_id, item_type, title) VALUES (9001, 9001, 'NOTE', 'Theirs')");
+        jdbcTemplate.update("INSERT INTO study_track.subjects (id, user_id, name) VALUES (9001, 2, 'Theirs')");
+        jdbcTemplate.update("INSERT INTO study_track.topics (id, subject_id, name) VALUES (9001, 9001, 'Their topic')");
+        jdbcTemplate.update("INSERT INTO study_track.questions (id, topic_id, subject_id, user_id, question_type, title) VALUES (9001, 9001, 9001, 2, 'NOTE', 'Theirs')");
         patchProgress(9001, "{\"status\":\"DONE\"}").andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/topics/9001/complete")).andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/reviews").contentType(MediaType.APPLICATION_JSON)

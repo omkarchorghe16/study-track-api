@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "review_log")
+@Table(name = "flashcard_reviews")
 public class ReviewLogEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,7 +21,7 @@ public class ReviewLogEntity {
     @Column(name = "user_id", nullable = false, updatable = false)
     private Long userId;
 
-    @Column(name = "item_id", nullable = false, updatable = false)
+    @Column(name = "question_id", nullable = false, updatable = false)
     private Long itemId;
 
     @Enumerated(EnumType.STRING)

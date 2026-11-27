@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,16 +56,16 @@ class ImportIntegrationTest {
 
     @BeforeEach
     void resetData() {
-        jdbcTemplate.update("DELETE FROM llm_settings");
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM media_files");
-        jdbcTemplate.update("DELETE FROM tags");
+        jdbcTemplate.update("DELETE FROM study_track.llm_settings");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.media_files");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
         fakeLlm.reset();
         api = new StudyApiClient(mvc, objectMapper);
     }
 
     @Test
-    void markdownImportProducesSanitisedCandidatesForReview() throws Exception {
+    void markdownImportSavesSanitisedQuestionsAtOnce() throws Exception {
         long subjectId = api.createSubject("Java");
         fakeLlm.answerWith(request -> """
                 {"items":[{"topicPath":"Java > Collections","type":"QUESTION","question":"What is a HashMap?",
@@ -78,15 +79,18 @@ class ImportIntegrationTest {
         assertEquals("claude-opus-5-5", job.get("llmModel").asText());
 
         JsonNode finished = awaitImport(job.get("id").asLong());
-        assertEquals("READY_FOR_REVIEW", finished.get("status").asText());
+        assertEquals("COMPLETED", finished.get("status").asText());
         assertEquals(1, finished.get("totalChunks").asInt());
         assertEquals(1, finished.get("processedChunks").asInt());
         assertEquals(100, finished.get("percentComplete").asInt());
         assertTrue(finished.get("inputTokens").asLong() > 0);
-        assertEquals(1, finished.get("candidates").get("open").asInt());
+        assertEquals(1, finished.get("candidates").get("approved").asInt());
+        assertEquals(0, finished.get("candidates").get("open").asInt());
 
         JsonNode candidate = candidates(job.get("id").asLong()).get(0);
-        assertEquals("PENDING", candidate.get("status").asText());
+        assertEquals("APPROVED", candidate.get("status").asText());
+        assertTrue(candidate.get("createdItemId").asLong() > 0);
+        assertEquals("NOT_STARTED", candidate.get("questionStatus").asText());
         assertEquals("What is a HashMap?", candidate.get("title").asText());
         assertEquals("<p>A <b>hash</b> table</p>", candidate.get("answerHtml").asText());
         assertFalse(candidate.has("notesHtml"));
@@ -100,7 +104,7 @@ class ImportIntegrationTest {
         assertTrue(request.userPrompt().contains("Format: Markdown"));
         assertTrue(request.userPrompt().contains("<document>\n# Java"));
         assertTrue(request.outputSchema().containsKey("properties"));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_items", Integer.class));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.questions", Integer.class));
     }
 
     @Test
@@ -114,7 +118,7 @@ class ImportIntegrationTest {
         JsonNode finished = awaitImport(upload(subjectId, "a.txt", "Q?\nA".getBytes(StandardCharsets.UTF_8))
                 .get("id").asLong());
 
-        assertEquals("READY_FOR_REVIEW", finished.get("status").asText());
+        assertEquals("COMPLETED", finished.get("status").asText());
         assertEquals(0, finished.get("failedChunks").asInt());
         List<LlmExtractionRequest> requests = fakeLlm.getRequests();
         assertEquals(2, requests.size());
@@ -137,7 +141,7 @@ class ImportIntegrationTest {
         JsonNode finished = awaitImport(upload(subjectId, "two.md", markdown.getBytes(StandardCharsets.UTF_8))
                 .get("id").asLong());
 
-        assertEquals("READY_FOR_REVIEW", finished.get("status").asText());
+        assertEquals("COMPLETED", finished.get("status").asText());
         assertEquals(2, finished.get("totalChunks").asInt());
         assertEquals(1, finished.get("failedChunks").asInt());
         assertEquals(3, fakeLlm.getRequests().size());
@@ -159,7 +163,27 @@ class ImportIntegrationTest {
     }
 
     @Test
-    void docxImagesBecomeMediaAndApprovedItemsUseThem() throws Exception {
+    void importThatFailsPartWayKeepsTheQuestionsFoundBeforeTheFailure() throws Exception {
+        long subjectId = api.createSubject("Partial");
+        String markdown = "# Alpha\n" + "alpha text ".repeat(60) + "\n\n# Beta\n" + "beta text ".repeat(60) + "\n";
+        fakeLlm.answerWith(request -> {
+            if (request.userPrompt().contains("# Beta")) {
+                throw new LlmException(LlmException.Reason.CONFIGURATION, "Groq rejected the API key (HTTP 401)");
+            }
+            return "{\"items\":[{\"topicPath\":\"Alpha\",\"question\":\"What is alpha?\",\"answerHtml\":\"<p>a</p>\"}]}";
+        });
+
+        JsonNode finished = awaitImport(upload(subjectId, "two.md", markdown.getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
+
+        assertEquals("FAILED", finished.get("status").asText());
+        assertEquals("Groq rejected the API key (HTTP 401)", finished.get("errorMessage").asText());
+        assertEquals(1, readJson(get("/api/v1/imports/" + finished.get("id").asLong())).get("candidates").get("approved").asInt());
+        assertEquals(1, readJson(get("/api/v1/subjects/" + subjectId + "/items")).get("totalItems").asInt());
+    }
+
+    @Test
+    void docxImagesBecomeMediaAndSavedQuestionsUseThem() throws Exception {
         long subjectId = api.createSubject("Word");
         byte[] docx = TestDocuments.docxWithImage("Diagrams", "What does the flow look like?",
                 TestDocuments.pngBytes(2, 2));
@@ -188,17 +212,14 @@ class ImportIntegrationTest {
         assertEquals("[" + imageId + "]", candidate.get("imageIds").toString());
         assertTrue(candidate.get("answerHtml").asText().contains("src=\"/api/v1/media/" + imageId + "\""));
 
-        JsonNode approved = postJson("/api/v1/imports/" + jobId + "/approve", "{\"all\":true}", status().isOk());
-        assertEquals(1, approved.get("approvedCount").asInt());
-        assertEquals(2, approved.get("createdTopicCount").asInt());
-        assertEquals("COMPLETED", approved.get("job").get("status").asText());
-        long itemId = approved.get("createdItemIds").get(0).asLong();
+        assertEquals("APPROVED", candidate.get("status").asText());
+        long itemId = candidate.get("createdItemId").asLong();
 
         JsonNode item = readJson(get("/api/v1/items/" + itemId));
         assertEquals("IMPORT", item.get("source").asText());
         assertEquals("DIAGRAM", item.get("itemType").asText());
-        assertEquals(itemId, jdbcTemplate.queryForObject("SELECT item_id FROM media_files WHERE id = ?", Long.class, imageId));
-        assertEquals(jobId, jdbcTemplate.queryForObject("SELECT import_job_id FROM study_items WHERE id = ?", Long.class, itemId));
+        assertEquals(itemId, jdbcTemplate.queryForObject("SELECT question_id FROM study_track.media_files WHERE id = ?", Long.class, imageId));
+        assertEquals(jobId, jdbcTemplate.queryForObject("SELECT import_job_id FROM study_track.questions WHERE id = ?", Long.class, itemId));
         JsonNode tree = readJson(get("/api/v1/subjects/" + subjectId + "/topics"));
         assertEquals("Diagrams", tree.get(0).get("name").asText());
         assertEquals("Flows", tree.get(0).get("children").get(0).get("name").asText());
@@ -206,7 +227,7 @@ class ImportIntegrationTest {
     }
 
     @Test
-    void reviewFlagsDuplicatesAndApprovesEditsAndRejects() throws Exception {
+    void duplicatesAreNotSavedAgainAndSavedQuestionsCanBeTickedCompleted() throws Exception {
         long subjectId = api.createSubject("Review");
         long topicId = api.createTopic(subjectId, null, "JVM");
         long existingItemId = api.createItem(topicId, "What is the JVM", "EASY", "[]");
@@ -215,43 +236,33 @@ class ImportIntegrationTest {
                   {"topicPath":"JVM","type":"QUESTION","question":"What is the JVM?","answerHtml":"<p>A VM</p>"},
                   {"topicPath":"JIT","type":"QUESTION","question":"What is JIT?","answerHtml":"<p>Compiler</p>"},
                   {"topicPath":"JIT","type":"QUESTION","question":"what is  JIT?","answerHtml":"<p>Again</p>"}]}""");
-        long jobId = awaitImport(upload(subjectId, "jvm.txt", "notes".getBytes(StandardCharsets.UTF_8))
-                .get("id").asLong()).get("id").asLong();
+        JsonNode finished = awaitImport(upload(subjectId, "jvm.txt", "notes".getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
+        long jobId = finished.get("id").asLong();
 
+        assertEquals("COMPLETED", finished.get("status").asText());
+        assertEquals(1, finished.get("candidates").get("approved").asInt());
+        assertEquals(2, finished.get("candidates").get("duplicates").asInt());
         JsonNode candidates = candidates(jobId);
+        assertEquals("DUPLICATE", candidates.get(0).get("status").asText());
         assertEquals(existingItemId, candidates.get(0).get("duplicateItemId").asLong());
-        assertFalse(candidates.get(1).has("duplicateOfCandidateId"));
-        assertEquals(candidates.get(1).get("id").asLong(), candidates.get(2).get("duplicateOfCandidateId").asLong());
+        assertFalse(candidates.get(0).has("createdItemId"));
+        assertEquals("APPROVED", candidates.get(1).get("status").asText());
+        assertEquals("DUPLICATE", candidates.get(2).get("status").asText());
+        long savedItemId = candidates.get(1).get("createdItemId").asLong();
+        assertEquals(savedItemId, candidates.get(2).get("duplicateItemId").asLong());
+        assertEquals(2, readJson(get("/api/v1/subjects/" + subjectId + "/items")).get("totalItems").asInt());
 
-        long editedId = candidates.get(1).get("id").asLong();
-        JsonNode edited = putJson("/api/v1/imports/" + jobId + "/candidates/" + editedId, """
-                {"itemType":"NOTE","title":"Just-in-time compiler","questionHtml":"<p>What is JIT?</p>",
-                 "answerHtml":"<p>Compiles <img src=\\"https://evil.example/x.png\\">hot code</p>",
-                 "difficulty":"HARD","tags":["JIT"],"targetTopicId":%d}""".formatted(topicId), status().isOk());
-        assertEquals("EDITED", edited.get("status").asText());
-        assertEquals("<p>Compiles hot code</p>", edited.get("answerHtml").asText());
+        // Ticking a saved question as completed stores DONE for the user, shown on the import page too.
+        mvc.perform(patch("/api/v1/items/" + savedItemId + "/progress").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"DONE\"}")).andExpect(status().isOk());
+        assertEquals("DONE", candidates(jobId).get(1).get("questionStatus").asText());
 
-        JsonNode approved = postJson("/api/v1/imports/" + jobId + "/approve",
-                "{\"candidateIds\":[" + editedId + "]}", status().isOk());
-        assertEquals(1, approved.get("approvedCount").asInt());
-        assertEquals(0, approved.get("createdTopicCount").asInt());
-        assertEquals("READY_FOR_REVIEW", approved.get("job").get("status").asText());
-        JsonNode item = readJson(get("/api/v1/items/" + approved.get("createdItemIds").get(0).asLong()));
-        assertEquals(topicId, item.get("topicId").asLong());
-        assertEquals("Just-in-time compiler", item.get("title").asText());
-        assertEquals("[\"jit\"]", item.get("tags").toString());
-
-        putJson("/api/v1/imports/" + jobId + "/candidates/" + editedId, """
+        // Nothing is left to approve; saved drafts can no longer be edited.
+        assertEquals(0, postJson("/api/v1/imports/" + jobId + "/approve", "{\"all\":true}", status().isOk())
+                .get("approvedCount").asInt());
+        putJson("/api/v1/imports/" + jobId + "/candidates/" + candidates.get(1).get("id").asLong(), """
                 {"itemType":"NOTE","title":"Again"}""", status().isConflict());
-
-        JsonNode rejected = postJson("/api/v1/imports/" + jobId + "/reject", "{\"all\":true}", status().isOk());
-        assertEquals(2, rejected.get("rejectedCount").asInt());
-        assertEquals("COMPLETED", rejected.get("job").get("status").asText());
-        assertEquals(1, rejected.get("job").get("candidates").get("approved").asInt());
-        assertEquals(2, rejected.get("job").get("candidates").get("rejected").asInt());
-
-        JsonNode again = postJson("/api/v1/imports/" + jobId + "/approve", "{\"all\":true}", status().isOk());
-        assertEquals(0, again.get("approvedCount").asInt());
         postJson("/api/v1/imports/" + jobId + "/approve", "{\"candidateIds\":[]}", status().isBadRequest());
         postJson("/api/v1/imports/" + jobId + "/approve", "{\"candidateIds\":[999999]}", status().isNotFound());
         assertEquals(1, readJson(get("/api/v1/imports")).size());
@@ -261,14 +272,84 @@ class ImportIntegrationTest {
     void candidatesWithoutTopicPathGoToATopicNamedAfterTheFile() throws Exception {
         long subjectId = api.createSubject("Fallback");
         fakeLlm.answerWith(request -> "{\"items\":[{\"question\":\"Loose question?\",\"answerHtml\":\"\"}]}");
-        long jobId = awaitImport(upload(subjectId, "loose-notes.txt", "Loose question?".getBytes(StandardCharsets.UTF_8))
-                .get("id").asLong()).get("id").asLong();
+        awaitImport(upload(subjectId, "loose-notes.txt", "Loose question?".getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
 
-        JsonNode approved = postJson("/api/v1/imports/" + jobId + "/approve", "{\"all\":true}", status().isOk());
-
-        assertEquals(1, approved.get("createdTopicCount").asInt());
         JsonNode tree = readJson(get("/api/v1/subjects/" + subjectId + "/topics"));
         assertEquals("loose-notes", tree.get(0).get("name").asText());
+    }
+
+    @Test
+    void csvRowsAreSavedAsQuestionsWithoutAnLlmAndDuplicatesAreSkipped() throws Exception {
+        long subjectId = api.createSubject("Core Java");
+        // CSV needs no LLM: it works even when LLM imports are off and no API key is set.
+        putJson("/api/v1/settings/llm", "{\"provider\":\"ANTHROPIC\",\"model\":\"claude-opus-5-5\",\"enabled\":false}",
+                status().isOk());
+        fakeLlm.failClientCreation(new LlmException(LlmException.Reason.CONFIGURATION, "no key"));
+        String csv = """
+                question,answer,topic
+                What is a HashMap?,"A hash table, keyed by hashCode()",Collections
+                "What does <b>final</b> do?",It allows one assignment,Java > Keywords
+                What is the JVM?,The Java virtual machine,
+                ,An answer without a question,
+                """;
+
+        JsonNode job = upload(subjectId, "java-questions.csv", csv.getBytes(StandardCharsets.UTF_8));
+        assertEquals("CSV", job.get("fileType").asText());
+        assertFalse(job.has("llmProvider"));
+        JsonNode finished = awaitImport(job.get("id").asLong());
+
+        assertEquals("COMPLETED", finished.get("status").asText());
+        assertEquals(0, finished.get("inputTokens").asLong());
+        assertEquals(3, finished.get("candidates").get("approved").asInt());
+        assertEquals(0, finished.get("candidates").get("open").asInt());
+        assertTrue(fakeLlm.getRequests().isEmpty());
+        JsonNode drafts = candidates(job.get("id").asLong());
+        assertEquals("What is a HashMap?", drafts.get(0).get("title").asText());
+        assertEquals("<p>A hash table, keyed by hashCode()</p>", drafts.get(0).get("answerHtml").asText());
+        assertEquals("Collections", drafts.get(0).get("suggestedTopicPath").asText());
+        assertEquals("<p>What does &lt;b&gt;final&lt;/b&gt; do?</p>", drafts.get(1).get("questionHtml").asText());
+        assertEquals("Java > Keywords", drafts.get(1).get("suggestedTopicPath").asText());
+        assertFalse(drafts.get(2).has("suggestedTopicPath"));
+        assertFalse(drafts.get(0).has("confidence"));
+
+        assertEquals("APPROVED", drafts.get(0).get("status").asText());
+        JsonNode questions = readJson(get("/api/v1/subjects/" + subjectId + "/items"));
+        assertEquals(3, questions.get("totalItems").asInt());
+        JsonNode tree = readJson(get("/api/v1/subjects/" + subjectId + "/topics"));
+        List<String> topicNames = new java.util.ArrayList<>();
+        tree.forEach(node -> topicNames.add(node.get("name").asText()));
+        assertTrue(topicNames.containsAll(List.of("Collections", "Java", "java-questions")), topicNames.toString());
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM study_track.import_jobs WHERE file_type = 'CSV' AND llm_provider IS NULL", Integer.class));
+        assertEquals(3, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM study_track.questions WHERE subject_id = ? AND user_id = 1", Integer.class, subjectId));
+
+        // Uploading the same questions again saves only the new one; the repeats are marked DUPLICATE.
+        String again = "What is a HashMap?,Same question again\nWhat is a HashMap?,And once more\nBrand new?,Yes\n";
+        JsonNode second = awaitImport(upload(subjectId, "again.csv", again.getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
+        assertEquals("COMPLETED", second.get("status").asText());
+        assertEquals(1, second.get("candidates").get("approved").asInt());
+        assertEquals(2, second.get("candidates").get("duplicates").asInt());
+        assertEquals(0, second.get("candidates").get("open").asInt());
+        assertEquals(4, readJson(get("/api/v1/subjects/" + subjectId + "/items")).get("totalItems").asInt());
+    }
+
+    @Test
+    void csvWithoutQuestionsOrWithAnOpenQuoteFails() throws Exception {
+        long subjectId = api.createSubject("Bad CSV");
+
+        JsonNode empty = awaitImport(upload(subjectId, "empty.csv", "question,answer\n".getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
+        assertEquals("FAILED", empty.get("status").asText());
+        assertTrue(empty.get("errorMessage").asText().startsWith("No questions were found"));
+
+        JsonNode broken = awaitImport(upload(subjectId, "broken.csv", "q,\"never closed\n".getBytes(StandardCharsets.UTF_8))
+                .get("id").asLong());
+        assertEquals("FAILED", broken.get("status").asText());
+        assertEquals("The CSV could not be read: Line 1 opens a quote (\") that is never closed.",
+                broken.get("errorMessage").asText());
     }
 
     @Test
@@ -278,7 +359,7 @@ class ImportIntegrationTest {
 
         JsonNode finished = awaitImport(upload(subjectId, "scan.pdf", pdf).get("id").asLong());
 
-        assertEquals("READY_FOR_REVIEW", finished.get("status").asText());
+        assertEquals("COMPLETED", finished.get("status").asText());
         String prompt = fakeLlm.getRequests().getFirst().userPrompt();
         assertTrue(prompt.contains("Format: plain text"), prompt);
         assertTrue(prompt.contains("[Page 1]\nFirst page question"), prompt);
@@ -306,7 +387,7 @@ class ImportIntegrationTest {
                 status().isOk());
         uploadExpecting(subjectId, "a.txt", "a".getBytes(StandardCharsets.UTF_8), status().isConflict())
                 .andExpect(jsonPath("$.message").value("Imports are switched off in Settings"));
-        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM import_jobs", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.import_jobs", Integer.class));
         mvc.perform(get("/api/v1/imports/999999")).andExpect(status().isNotFound());
     }
 

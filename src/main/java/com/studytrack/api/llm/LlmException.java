@@ -16,7 +16,9 @@ public class LlmException extends RuntimeException {
         /** The model declined to answer this prompt. */
         REFUSED,
         /** The answer hit the output token limit and is incomplete. */
-        TRUNCATED
+        TRUNCATED,
+        /** The provider could not produce an answer matching the JSON Schema for this prompt. */
+        INVALID_ANSWER
     }
 
     private final Reason reason;
@@ -42,6 +44,6 @@ public class LlmException extends RuntimeException {
 
     /** True when the failure is specific to one prompt, so other chunks of a document can still be processed. */
     public boolean isPromptSpecific() {
-        return reason == Reason.REFUSED || reason == Reason.TRUNCATED;
+        return reason == Reason.REFUSED || reason == Reason.TRUNCATED || reason == Reason.INVALID_ANSWER;
     }
 }

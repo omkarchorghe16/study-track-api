@@ -14,6 +14,7 @@ import com.studytrack.api.llm.LlmSettingsService;
 import com.studytrack.api.media.MediaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -25,7 +26,9 @@ import java.util.Set;
 
 /**
  * Runs an import in the background: parse the stored document, split it into chunks, ask the LLM for
- * items chunk by chunk and save them as PENDING candidates. LLM calls run outside transactions; each
+ * items chunk by chunk and save them as PENDING candidates. A CSV is read row by row instead (no LLM):
+ * every row with a question becomes a draft. When an import ends (also when it fails part-way) its drafts
+ * are saved as questions at once; questions the subject already has are marked DUPLICATE. LLM calls run outside transactions; each
  * chunk's candidates and the job counters are saved together in a short transaction, so the UI's
  * progress bar moves while the job runs. Logs token usage, never document text or LLM answers.
  */
@@ -39,25 +42,29 @@ public class ImportProcessingService {
     private final DocumentParser documentParser;
     private final DocumentChunker documentChunker;
     private final CandidateContentBuilder candidateContentBuilder;
+    private final CsvQuestionReader csvQuestionReader;
     private final LlmSettingsService llmSettingsService;
     private final LlmProperties llmProperties;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ImportProcessingService(ImportJobRepository importJobRepository,
                                    ImportCandidateRepository importCandidateRepository, MediaService mediaService,
                                    DocumentParser documentParser, DocumentChunker documentChunker,
                                    CandidateContentBuilder candidateContentBuilder,
-                                   LlmSettingsService llmSettingsService, LlmProperties llmProperties,
-                                   TransactionTemplate transactionTemplate) {
+                                   CsvQuestionReader csvQuestionReader, LlmSettingsService llmSettingsService, LlmProperties llmProperties,
+                                   TransactionTemplate transactionTemplate, ApplicationEventPublisher eventPublisher) {
         this.importJobRepository = importJobRepository;
         this.importCandidateRepository = importCandidateRepository;
         this.mediaService = mediaService;
         this.documentParser = documentParser;
         this.documentChunker = documentChunker;
         this.candidateContentBuilder = candidateContentBuilder;
+        this.csvQuestionReader = csvQuestionReader;
         this.llmSettingsService = llmSettingsService;
         this.llmProperties = llmProperties;
         this.transactionTemplate = transactionTemplate;
+        this.eventPublisher = eventPublisher;
     }
 
     /** A reason to stop the whole job; the message is shown to the user. */
@@ -81,6 +88,8 @@ public class ImportProcessingService {
             runImport(job);
         } catch (ImportFailure failure) {
             failJob(job, failure.getMessage());
+        } catch (CsvQuestionReader.CsvFormatException exception) {
+            failJob(job, "The CSV could not be read: " + exception.getMessage());
         } catch (DocumentParseException exception) {
             log.warn("Import document unreadable: jobId={} fileType={} exceptionType={}", jobId, job.getFileType(),
                     exception.getCause() == null ? "none" : exception.getCause().getClass().getSimpleName());
@@ -99,6 +108,10 @@ public class ImportProcessingService {
             throw new ImportFailure("The uploaded file was deleted before it could be read");
         }
         byte[] content = mediaService.readMediaBytes(userId, job.getMediaId());
+        if (!job.getFileType().usesLlm()) {
+            importCsvRows(job, content);
+            return;
+        }
         ParsedDocument document = documentParser.parseDocument(job.getFileType(), content,
                 (imageBytes, altText) -> mediaService.storeImportedImage(userId, imageBytes, altText));
         List<DocumentChunk> chunks = documentChunker.splitIntoChunks(document.blocks(),
@@ -134,10 +147,33 @@ public class ImportProcessingService {
         }
         job.setStatus(ImportJobStatus.READY_FOR_REVIEW);
         job = saveJob(job);
-        log.info("Import ready for review: jobId={} provider={} model={} chunks={} failedChunks={} images={} "
+        saveDraftsAsQuestions(job.getId());
+        log.info("Import done: jobId={} provider={} model={} chunks={} failedChunks={} images={} "
                         + "inputTokens={} outputTokens={}", job.getId(), job.getLlmProvider(), job.getLlmModel(),
                 job.getTotalChunks(), job.getFailedChunks(), jobImageIds.size(), job.getInputTokens(),
                 job.getOutputTokens());
+    }
+
+    /** Every CSV row with a question becomes a PENDING candidate; the whole file counts as one part. */
+    private void importCsvRows(ImportJobEntity job, byte[] content) {
+        CsvQuestionReader.CsvQuestions questions = csvQuestionReader.readQuestions(content);
+        if (questions.rows().isEmpty()) {
+            throw new ImportFailure("No questions were found. Put the question in column 1 and the answer in column 2.");
+        }
+        job.setTotalChunks(1);
+        job.setStatus(ImportJobStatus.EXTRACTING);
+        job = saveJob(job);
+        List<ImportCandidateEntity> candidates = new ArrayList<>();
+        for (CsvQuestionReader.CsvQuestionRow row : questions.rows()) {
+            candidates.add(candidateContentBuilder.buildCsvCandidate(job.getId(), row, candidates.size()));
+        }
+        job.recordChunk(false, 0, 0);
+        job = saveChunkResult(job, candidates);
+        job.setStatus(ImportJobStatus.READY_FOR_REVIEW);
+        job = saveJob(job);
+        saveDraftsAsQuestions(job.getId());
+        log.info("CSV import done: jobId={} rows={} skippedRows={}", job.getId(), candidates.size(),
+                questions.skippedRows());
     }
 
     private LlmClient createClient(ImportJobEntity job) {
@@ -232,5 +268,16 @@ public class ImportProcessingService {
                 job.getOutputTokens());
         job.markFailed(message);
         saveJob(job);
+        // Questions found before the failure are kept.
+        saveDraftsAsQuestions(job.getId());
+    }
+
+    /** Hands the job's drafts to {@link ImportService#saveImportDrafts}; a failure leaves them open, not lost. */
+    private void saveDraftsAsQuestions(Long jobId) {
+        try {
+            eventPublisher.publishEvent(new ImportDraftsReadyEvent(jobId));
+        } catch (RuntimeException exception) {
+            log.error("Import drafts could not be saved as questions, left open: jobId={}", jobId, exception);
+        }
     }
 }

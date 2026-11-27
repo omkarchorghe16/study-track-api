@@ -40,8 +40,8 @@ class ItemIntegrationTest {
 
     @BeforeEach
     void resetData() throws Exception {
-        jdbcTemplate.update("DELETE FROM subjects");
-        jdbcTemplate.update("DELETE FROM tags");
+        jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.tags");
         api = new StudyApiClient(mvc, objectMapper);
         subjectId = api.createSubject("Java");
         topicId = api.createTopic(subjectId, null, "Collections");
@@ -66,10 +66,10 @@ class ItemIntegrationTest {
         long itemId = api.readJson(body).get("id").asLong();
 
         Map<String, Object> row = jdbcTemplate.queryForMap(
-                "SELECT answer_plain, content_hash FROM study_items WHERE id = ?", itemId);
-        assertEquals("Buckets and hashCode.", row.get("ANSWER_PLAIN"));
+                "SELECT answer_plain_text, content_hash FROM study_track.questions WHERE id = ?", itemId);
+        assertEquals("Buckets and hashCode.", row.get("ANSWER_PLAIN_TEXT"));
         assertEquals(64, row.get("CONTENT_HASH").toString().length());
-        assertEquals(2, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tags", Integer.class));
+        assertEquals(2, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.tags", Integer.class));
     }
 
     @Test
@@ -82,7 +82,7 @@ class ItemIntegrationTest {
         long other = api.createItem(topicId, "Different", "EASY", "[]");
         String firstHash = hashOf(first);
         assertEquals(1, jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM study_items WHERE content_hash = ? AND id <> ?", Integer.class, firstHash, first));
+                "SELECT COUNT(*) FROM study_track.questions WHERE content_hash = ? AND id <> ?", Integer.class, firstHash, first));
         assertNotEquals(firstHash, hashOf(other));
     }
 
@@ -106,6 +106,52 @@ class ItemIntegrationTest {
                 .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/topics/" + topicId + "/items?size=500"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listsItemsOfAllTopicsInTheSubject() throws Exception {
+        long streams = api.createTopic(subjectId, null, "Streams");
+        api.createItem(topicId, "List vs set", "EASY", "[\"jvm\"]");
+        api.createItem(streams, "What is a stream?", "HARD", "[]");
+        long otherSubject = api.createSubject("Spring");
+        api.createItem(api.createTopic(otherSubject, null, "Beans"), "Not here", "EASY", "[]");
+
+        mvc.perform(get("/api/v1/subjects/" + subjectId + "/items"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItems").value(2))
+                .andExpect(jsonPath("$.items[0].title").value("List vs set"))
+                .andExpect(jsonPath("$.items[0].topicId").value(topicId))
+                .andExpect(jsonPath("$.items[1].title").value("What is a stream?"))
+                .andExpect(jsonPath("$.items[1].topicId").value(streams));
+        mvc.perform(get("/api/v1/subjects/" + subjectId + "/items?difficulty=HARD"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("What is a stream?"));
+        mvc.perform(get("/api/v1/subjects/" + subjectId + "/items?status=NOT_STARTED&size=1"))
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalPages").value(2));
+        mvc.perform(get("/api/v1/subjects/999999/items")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void questionsStoreTheirSubjectAndOwnerAndFollowAMoveToAnotherSubject() throws Exception {
+        long itemId = api.createItem(topicId, "Where am I?", "EASY", "[]");
+        assertEquals(subjectId, subjectOf(itemId));
+        assertEquals(1L, jdbcTemplate.queryForObject("SELECT user_id FROM study_track.questions WHERE id = ?",
+                Long.class, itemId));
+
+        long otherSubject = api.createSubject("Spring");
+        long otherTopic = api.createTopic(otherSubject, null, "Beans");
+        mvc.perform(put("/api/v1/items/" + itemId).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"topicId\":" + otherTopic + ",\"itemType\":\"NOTE\",\"title\":\"Where am I?\"}"))
+                .andExpect(status().isOk());
+
+        assertEquals(otherSubject, subjectOf(itemId));
+        mvc.perform(get("/api/v1/subjects/" + subjectId + "/items")).andExpect(jsonPath("$.totalItems").value(0));
+        mvc.perform(get("/api/v1/subjects/" + otherSubject + "/items")).andExpect(jsonPath("$.totalItems").value(1));
+    }
+
+    private long subjectOf(long itemId) {
+        return jdbcTemplate.queryForObject("SELECT subject_id FROM study_track.questions WHERE id = ?", Long.class, itemId);
     }
 
     @Test
@@ -155,16 +201,16 @@ class ItemIntegrationTest {
         mvc.perform(delete("/api/v1/items/" + itemId)).andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/items/" + itemId)).andExpect(status().isNotFound());
 
-        jdbcTemplate.update("MERGE INTO users (id, display_name, email) KEY (id) VALUES (2, 'Other', 'other@example.test')");
-        jdbcTemplate.update("INSERT INTO subjects (id, user_id, name) VALUES (901, 2, 'Theirs')");
-        jdbcTemplate.update("INSERT INTO topics (id, subject_id, name) VALUES (901, 901, 'Theirs')");
-        jdbcTemplate.update("INSERT INTO study_items (id, topic_id, item_type, title) VALUES (901, 901, 'NOTE', 'Theirs')");
+        jdbcTemplate.update("MERGE INTO study_track.users (id, display_name, email) KEY (id) VALUES (2, 'Other', 'other@example.test')");
+        jdbcTemplate.update("INSERT INTO study_track.subjects (id, user_id, name) VALUES (901, 2, 'Theirs')");
+        jdbcTemplate.update("INSERT INTO study_track.topics (id, subject_id, name) VALUES (901, 901, 'Theirs')");
+        jdbcTemplate.update("INSERT INTO study_track.questions (id, topic_id, subject_id, user_id, question_type, title) VALUES (901, 901, 901, 2, 'NOTE', 'Theirs')");
         mvc.perform(get("/api/v1/items/901")).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/topics/901/items")).andExpect(status().isNotFound());
     }
 
     private String hashOf(long itemId) {
-        return jdbcTemplate.queryForObject("SELECT content_hash FROM study_items WHERE id = ?", String.class, itemId);
+        return jdbcTemplate.queryForObject("SELECT content_hash FROM study_track.questions WHERE id = ?", String.class, itemId);
     }
 
     @Test

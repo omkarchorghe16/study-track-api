@@ -19,7 +19,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
-@Table(name = "study_items")
+@Table(name = "questions")
 public class StudyItemEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,8 +28,16 @@ public class StudyItemEntity {
     @Column(name = "topic_id", nullable = false)
     private Long topicId;
 
+    /** Always the topic's subject; set together with the topic by {@link #placeInTopic}. */
+    @Column(name = "subject_id", nullable = false)
+    private Long subjectId;
+
+    /** Always the owner of the subject. */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "item_type", nullable = false, length = 20)
+    @Column(name = "question_type", nullable = false, length = 20)
     private ItemType itemType;
 
     @Column(nullable = false, length = 300)
@@ -44,7 +52,7 @@ public class StudyItemEntity {
     @Column(name = "notes_html")
     private String notesHtml;
 
-    @Column(name = "answer_plain")
+    @Column(name = "answer_plain_text")
     private String answerPlain;
 
     @Enumerated(EnumType.STRING)
@@ -65,8 +73,8 @@ public class StudyItemEntity {
     private int sortOrder;
 
     @ManyToMany
-    @JoinTable(name = "study_item_tags",
-            joinColumns = @JoinColumn(name = "item_id"),
+    @JoinTable(name = "question_tags",
+            joinColumns = @JoinColumn(name = "question_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<TagEntity> tags = new HashSet<>();
 
@@ -109,8 +117,19 @@ public class StudyItemEntity {
         return topicId;
     }
 
-    public void setTopicId(Long topicId) {
+    public Long getSubjectId() {
+        return subjectId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    /** Puts the item in a topic and keeps the subject and owner columns in step with it. */
+    public void placeInTopic(Long topicId, Long subjectId, Long userId) {
         this.topicId = topicId;
+        this.subjectId = subjectId;
+        this.userId = userId;
     }
 
     public ItemType getItemType() {

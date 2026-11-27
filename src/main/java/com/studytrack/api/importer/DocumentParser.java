@@ -78,6 +78,7 @@ public class DocumentParser {
             case PDF -> parsePdf(content);
             case MD -> parseMarkdown(new String(content, StandardCharsets.UTF_8));
             case TXT -> parseText(new String(content, StandardCharsets.UTF_8));
+            case CSV -> throw new IllegalArgumentException("CSV files are read by CsvQuestionReader, not parsed for the LLM");
         };
     }
 

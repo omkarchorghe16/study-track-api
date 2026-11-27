@@ -20,7 +20,7 @@ public class MediaFileEntity {
     @Column(name = "user_id", nullable = false, updatable = false)
     private Long userId;
 
-    @Column(name = "item_id")
+    @Column(name = "question_id")
     private Long itemId;
 
     @Column(name = "original_name", nullable = false, length = 255)

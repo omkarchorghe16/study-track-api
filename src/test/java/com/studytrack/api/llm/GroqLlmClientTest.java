@@ -81,6 +81,25 @@ class GroqLlmClientTest {
     }
 
     @Test
+    void jsonValidationFailureIsSentOnceMoreThenSkipsThePart() {
+        RestClient.Builder builder = groqBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        String invalidJson = "{\"error\":{\"message\":\"Failed to generate JSON.\",\"code\":\"json_validate_failed\"}}";
+        server.expect(requestTo(CHAT_URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON).body(invalidJson));
+        server.expect(requestTo(CHAT_URL)).andRespond(withSuccess(ANSWER, MediaType.APPLICATION_JSON));
+        server.expect(times(2), requestTo(CHAT_URL)).andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON).body(invalidJson));
+        GroqLlmClient client = new GroqLlmClient(builder.build(), MODEL, 4000, wait -> { });
+
+        assertEquals(40, client.extract(request).inputTokens());
+        LlmException skipped = assertThrows(LlmException.class, () -> client.extract(request));
+        assertEquals(LlmException.Reason.INVALID_ANSWER, skipped.getReason());
+        assertTrue(skipped.isPromptSpecific());
+        server.verify();
+    }
+
+    @Test
     void connectionTestFindsTheModelInTheList() {
         RestClient.Builder builder = groqBuilder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
