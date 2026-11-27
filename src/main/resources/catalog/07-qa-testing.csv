@@ -1,0 +1,78 @@
+track,subject,topic_path
+QA and Test Automation Engineer,Testing Fundamentals,Software testing basics > Verification vs validation
+QA and Test Automation Engineer,Testing Fundamentals,Software testing basics > Seven testing principles
+QA and Test Automation Engineer,Testing Fundamentals,Software testing basics > Test levels and types
+QA and Test Automation Engineer,Testing Fundamentals,SDLC and STLC
+QA and Test Automation Engineer,Testing Fundamentals,Agile testing
+QA and Test Automation Engineer,Testing Fundamentals,Test design techniques > Equivalence partitioning
+QA and Test Automation Engineer,Testing Fundamentals,Test design techniques > Boundary value analysis
+QA and Test Automation Engineer,Testing Fundamentals,Test design techniques > Decision tables
+QA and Test Automation Engineer,Testing Fundamentals,Test design techniques > State transition testing
+QA and Test Automation Engineer,Testing Fundamentals,Test design techniques > Exploratory testing
+QA and Test Automation Engineer,Testing Fundamentals,Test documentation > Test plan and strategy
+QA and Test Automation Engineer,Testing Fundamentals,Test documentation > Test cases
+QA and Test Automation Engineer,Testing Fundamentals,Test documentation > Traceability matrix
+QA and Test Automation Engineer,Testing Fundamentals,Bug life cycle > Severity vs priority
+QA and Test Automation Engineer,Testing Fundamentals,Bug life cycle > Writing a good bug report
+QA and Test Automation Engineer,Testing Fundamentals,Types of testing > Smoke and sanity
+QA and Test Automation Engineer,Testing Fundamentals,Types of testing > Regression
+QA and Test Automation Engineer,Testing Fundamentals,Types of testing > Integration
+QA and Test Automation Engineer,Testing Fundamentals,Types of testing > System and acceptance
+QA and Test Automation Engineer,Testing Fundamentals,Types of testing > Non-functional
+QA and Test Automation Engineer,Manual and API Testing,Test management tools > Jira
+QA and Test Automation Engineer,Manual and API Testing,Test management tools > TestRail
+QA and Test Automation Engineer,Manual and API Testing,REST API testing > HTTP methods and status codes
+QA and Test Automation Engineer,Manual and API Testing,REST API testing > Postman
+QA and Test Automation Engineer,Manual and API Testing,REST API testing > Authentication
+QA and Test Automation Engineer,Manual and API Testing,Database testing with SQL
+QA and Test Automation Engineer,Manual and API Testing,Cross-browser and mobile testing
+QA and Test Automation Engineer,Manual and API Testing,Accessibility testing
+QA and Test Automation Engineer,Test Automation,Automation strategy > Test pyramid
+QA and Test Automation Engineer,Test Automation,Automation strategy > What to automate
+QA and Test Automation Engineer,Test Automation,Selenium WebDriver > Locators
+QA and Test Automation Engineer,Test Automation,Selenium WebDriver > Waits
+QA and Test Automation Engineer,Test Automation,Selenium WebDriver > Page Object Model
+QA and Test Automation Engineer,Test Automation,Selenium WebDriver > Selenium Grid
+QA and Test Automation Engineer,Test Automation,Playwright > Locators and auto-waiting
+QA and Test Automation Engineer,Test Automation,Playwright > Fixtures
+QA and Test Automation Engineer,Test Automation,Playwright > Network mocking
+QA and Test Automation Engineer,Test Automation,Playwright > Trace viewer
+QA and Test Automation Engineer,Test Automation,Cypress
+QA and Test Automation Engineer,Test Automation,Mobile automation with Appium
+QA and Test Automation Engineer,Test Automation,Flaky test handling
+QA and Test Automation Engineer,Test Automation,Framework design > Data-driven testing
+QA and Test Automation Engineer,Test Automation,Framework design > Behavior-driven development with Cucumber
+QA and Test Automation Engineer,Test Automation,Framework design > Reporting
+QA and Test Automation Engineer,Programming for Testers,Java for automation > OOP concepts
+QA and Test Automation Engineer,Programming for Testers,Java for automation > Collections
+QA and Test Automation Engineer,Programming for Testers,Java for automation > Exception handling
+QA and Test Automation Engineer,Programming for Testers,JavaScript and TypeScript for automation
+QA and Test Automation Engineer,Programming for Testers,Python for automation
+QA and Test Automation Engineer,Programming for Testers,Unit testing frameworks > JUnit and TestNG
+QA and Test Automation Engineer,Programming for Testers,Unit testing frameworks > pytest
+QA and Test Automation Engineer,Programming for Testers,Unit testing frameworks > Mockito
+QA and Test Automation Engineer,Programming for Testers,Git basics
+QA and Test Automation Engineer,API and Backend Automation,REST Assured
+QA and Test Automation Engineer,API and Backend Automation,Contract testing
+QA and Test Automation Engineer,API and Backend Automation,Mocking and stubbing services
+QA and Test Automation Engineer,API and Backend Automation,Database and message queue verification
+QA and Test Automation Engineer,API and Backend Automation,Testcontainers
+QA and Test Automation Engineer,Performance and Security Testing,"Performance testing concepts > Load, stress and soak tests"
+QA and Test Automation Engineer,Performance and Security Testing,Performance testing concepts > Throughput and latency
+QA and Test Automation Engineer,Performance and Security Testing,JMeter
+QA and Test Automation Engineer,Performance and Security Testing,k6 and Gatling
+QA and Test Automation Engineer,Performance and Security Testing,Analyzing results and bottlenecks
+QA and Test Automation Engineer,Performance and Security Testing,Security testing > OWASP Top 10
+QA and Test Automation Engineer,Performance and Security Testing,Security testing > SQL injection and XSS
+QA and Test Automation Engineer,Performance and Security Testing,Security testing > Penetration testing basics
+QA and Test Automation Engineer,CI/CD and Quality Practices,Running tests in CI pipelines
+QA and Test Automation Engineer,CI/CD and Quality Practices,Jenkins and GitHub Actions
+QA and Test Automation Engineer,CI/CD and Quality Practices,Docker for test environments
+QA and Test Automation Engineer,CI/CD and Quality Practices,Test environments and data management
+QA and Test Automation Engineer,CI/CD and Quality Practices,Shift-left testing
+QA and Test Automation Engineer,CI/CD and Quality Practices,Code coverage and mutation testing
+QA and Test Automation Engineer,CI/CD and Quality Practices,Metrics and quality reporting
+QA and Test Automation Engineer,Interview Topics,Testing scenarios and real-time questions
+QA and Test Automation Engineer,Interview Topics,Test case writing exercises
+QA and Test Automation Engineer,Interview Topics,Automation framework walkthrough
+QA and Test Automation Engineer,Interview Topics,Behavioral questions for QA roles

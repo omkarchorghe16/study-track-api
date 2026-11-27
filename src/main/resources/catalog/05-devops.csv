@@ -1,0 +1,90 @@
+track,subject,topic_path
+DevOps Engineer,Linux and Shell,Linux fundamentals > File system and permissions
+DevOps Engineer,Linux and Shell,Linux fundamentals > Processes and signals
+DevOps Engineer,Linux and Shell,Linux fundamentals > Users and groups
+DevOps Engineer,Linux and Shell,Linux fundamentals > Package management
+DevOps Engineer,Linux and Shell,Linux fundamentals > systemd and services
+DevOps Engineer,Linux and Shell,Shell scripting > Bash basics
+DevOps Engineer,Linux and Shell,"Shell scripting > Text processing: grep, sed and awk"
+DevOps Engineer,Linux and Shell,Shell scripting > Cron and scheduling
+DevOps Engineer,Linux and Shell,Troubleshooting > Logs and journald
+DevOps Engineer,Linux and Shell,"Troubleshooting > CPU, memory and disk analysis"
+DevOps Engineer,Networking,TCP/IP and the OSI model
+DevOps Engineer,Networking,DNS
+DevOps Engineer,Networking,HTTP and HTTPS
+DevOps Engineer,Networking,Load balancers and reverse proxies
+DevOps Engineer,Networking,Firewalls and security groups
+DevOps Engineer,Networking,VPN and subnets
+DevOps Engineer,Git and Version Control,Branching strategies
+DevOps Engineer,Git and Version Control,Merge vs rebase
+DevOps Engineer,Git and Version Control,Resolving conflicts
+DevOps Engineer,Git and Version Control,Git hooks
+DevOps Engineer,Git and Version Control,Monorepo vs multi-repo
+DevOps Engineer,CI/CD,CI/CD concepts > Continuous integration
+DevOps Engineer,CI/CD,CI/CD concepts > Continuous delivery vs deployment
+DevOps Engineer,CI/CD,Jenkins > Pipelines and Jenkinsfile
+DevOps Engineer,CI/CD,Jenkins > Agents and plugins
+DevOps Engineer,CI/CD,GitHub Actions > Workflows and runners
+DevOps Engineer,CI/CD,GitHub Actions > Secrets and environments
+DevOps Engineer,CI/CD,GitLab CI
+DevOps Engineer,CI/CD,Deployment strategies > Blue-green
+DevOps Engineer,CI/CD,Deployment strategies > Canary
+DevOps Engineer,CI/CD,Deployment strategies > Rolling updates
+DevOps Engineer,CI/CD,Artifact repositories
+DevOps Engineer,CI/CD,Pipeline security
+DevOps Engineer,Containers and Docker,Images and containers
+DevOps Engineer,Containers and Docker,Dockerfile best practices
+DevOps Engineer,Containers and Docker,Multi-stage builds
+DevOps Engineer,Containers and Docker,Volumes and networking
+DevOps Engineer,Containers and Docker,Docker Compose
+DevOps Engineer,Containers and Docker,Image scanning and registries
+DevOps Engineer,Kubernetes,Architecture > Control plane and nodes
+DevOps Engineer,Kubernetes,Architecture > etcd and the API server
+DevOps Engineer,Kubernetes,Workloads > Pods
+DevOps Engineer,Kubernetes,Workloads > Deployments and ReplicaSets
+DevOps Engineer,Kubernetes,Workloads > StatefulSets and DaemonSets
+DevOps Engineer,Kubernetes,Workloads > Jobs and CronJobs
+DevOps Engineer,Kubernetes,Services and networking > Service types
+DevOps Engineer,Kubernetes,Services and networking > Ingress
+DevOps Engineer,Kubernetes,Services and networking > Network policies
+DevOps Engineer,Kubernetes,Configuration > ConfigMaps and Secrets
+DevOps Engineer,Kubernetes,Configuration > Resource requests and limits
+DevOps Engineer,Kubernetes,Storage > Persistent volumes and claims
+DevOps Engineer,Kubernetes,Scaling and scheduling > Horizontal pod autoscaler
+DevOps Engineer,Kubernetes,"Scaling and scheduling > Taints, tolerations and affinity"
+DevOps Engineer,Kubernetes,Helm and Kustomize
+DevOps Engineer,Kubernetes,RBAC and security
+DevOps Engineer,Kubernetes,Troubleshooting pods
+DevOps Engineer,Infrastructure as Code,Terraform > Providers and resources
+DevOps Engineer,Infrastructure as Code,Terraform > State and remote backends
+DevOps Engineer,Infrastructure as Code,Terraform > Modules
+DevOps Engineer,Infrastructure as Code,Terraform > Workspaces
+DevOps Engineer,Infrastructure as Code,Ansible > Playbooks and roles
+DevOps Engineer,Infrastructure as Code,Ansible > Inventory
+DevOps Engineer,Infrastructure as Code,Configuration drift and immutability
+DevOps Engineer,Cloud (AWS),Compute > EC2
+DevOps Engineer,Cloud (AWS),Compute > Lambda
+DevOps Engineer,Cloud (AWS),Compute > ECS and EKS
+DevOps Engineer,Cloud (AWS),Storage and databases > S3
+DevOps Engineer,Cloud (AWS),Storage and databases > EBS and EFS
+DevOps Engineer,Cloud (AWS),Storage and databases > RDS and DynamoDB
+DevOps Engineer,Cloud (AWS),Networking > VPC and subnets
+DevOps Engineer,Cloud (AWS),Networking > Route 53
+DevOps Engineer,Cloud (AWS),Networking > CloudFront
+DevOps Engineer,Cloud (AWS),"IAM > Users, roles and policies"
+DevOps Engineer,Cloud (AWS),IAM > Least privilege
+DevOps Engineer,Cloud (AWS),Auto scaling and load balancing
+DevOps Engineer,Cloud (AWS),Cost optimization
+DevOps Engineer,Monitoring and Observability,Metrics with Prometheus
+DevOps Engineer,Monitoring and Observability,Dashboards with Grafana
+DevOps Engineer,Monitoring and Observability,Logging > ELK stack
+DevOps Engineer,Monitoring and Observability,Logging > Loki
+DevOps Engineer,Monitoring and Observability,Distributed tracing
+DevOps Engineer,Monitoring and Observability,Alerting and on-call
+DevOps Engineer,Monitoring and Observability,"SLIs, SLOs and error budgets"
+DevOps Engineer,Security and Reliability,Secrets management > Vault
+DevOps Engineer,Security and Reliability,Secrets management > Cloud secret managers
+DevOps Engineer,Security and Reliability,DevSecOps and scanning
+DevOps Engineer,Security and Reliability,Backup and disaster recovery
+DevOps Engineer,Security and Reliability,Incident response and postmortems
+DevOps Engineer,Security and Reliability,Chaos engineering

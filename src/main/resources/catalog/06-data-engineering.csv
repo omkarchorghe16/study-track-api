@@ -1,0 +1,80 @@
+track,subject,topic_path
+Data Engineer,SQL and Databases,SQL fundamentals > Joins
+Data Engineer,SQL and Databases,SQL fundamentals > Aggregations and GROUP BY
+Data Engineer,SQL and Databases,SQL fundamentals > Subqueries and CTEs
+Data Engineer,SQL and Databases,SQL fundamentals > Window functions
+Data Engineer,SQL and Databases,Query optimization > Indexes
+Data Engineer,SQL and Databases,Query optimization > Execution plans
+Data Engineer,SQL and Databases,Query optimization > Partitioning
+Data Engineer,SQL and Databases,Data modeling > Normalization
+Data Engineer,SQL and Databases,Data modeling > Star and snowflake schemas
+Data Engineer,SQL and Databases,Data modeling > Slowly changing dimensions
+Data Engineer,SQL and Databases,Data modeling > Data vault
+Data Engineer,SQL and Databases,Transactions and isolation levels
+Data Engineer,SQL and Databases,NoSQL > Key-value and document stores
+Data Engineer,SQL and Databases,NoSQL > Wide-column stores
+Data Engineer,SQL and Databases,NoSQL > Graph databases
+Data Engineer,Python for Data,Python essentials
+Data Engineer,Python for Data,Pandas
+Data Engineer,Python for Data,NumPy
+Data Engineer,Python for Data,File formats > CSV and JSON
+Data Engineer,Python for Data,File formats > Parquet and Avro
+Data Engineer,Python for Data,File formats > ORC
+Data Engineer,Python for Data,APIs and web scraping
+Data Engineer,Python for Data,Testing data code
+Data Engineer,Data Warehousing,OLTP vs OLAP
+Data Engineer,Data Warehousing,Warehouse concepts > Fact and dimension tables
+Data Engineer,Data Warehousing,Warehouse concepts > Partitioning and clustering
+Data Engineer,Data Warehousing,Snowflake
+Data Engineer,Data Warehousing,BigQuery
+Data Engineer,Data Warehousing,Redshift
+Data Engineer,Data Warehousing,Lakehouse > Delta Lake
+Data Engineer,Data Warehousing,Lakehouse > Iceberg
+Data Engineer,Big Data and Spark,Hadoop ecosystem > HDFS
+Data Engineer,Big Data and Spark,Hadoop ecosystem > MapReduce
+Data Engineer,Big Data and Spark,Hadoop ecosystem > YARN
+Data Engineer,Big Data and Spark,"Apache Spark > RDDs, DataFrames and Datasets"
+Data Engineer,Big Data and Spark,Apache Spark > Spark SQL
+Data Engineer,Big Data and Spark,Apache Spark > Transformations and actions
+Data Engineer,Big Data and Spark,Apache Spark > Shuffles and partitioning
+Data Engineer,Big Data and Spark,Apache Spark > Joins and broadcast
+Data Engineer,Big Data and Spark,Apache Spark > Performance tuning
+Data Engineer,Big Data and Spark,Apache Spark > Structured Streaming
+Data Engineer,Big Data and Spark,PySpark
+Data Engineer,Big Data and Spark,Hive
+Data Engineer,Streaming,"Apache Kafka > Topics, partitions and offsets"
+Data Engineer,Streaming,Apache Kafka > Producers and consumers
+Data Engineer,Streaming,Apache Kafka > Consumer groups
+Data Engineer,Streaming,Apache Kafka > Delivery semantics
+Data Engineer,Streaming,Apache Kafka > Kafka Connect and Streams
+Data Engineer,Streaming,Stream processing with Flink
+Data Engineer,Streaming,Event-driven architecture
+Data Engineer,Streaming,Change data capture
+Data Engineer,Orchestration and ETL,ETL vs ELT
+Data Engineer,Orchestration and ETL,Apache Airflow > DAGs and operators
+Data Engineer,Orchestration and ETL,Apache Airflow > Scheduling and backfills
+Data Engineer,Orchestration and ETL,Apache Airflow > Sensors and XComs
+Data Engineer,Orchestration and ETL,dbt > Models and tests
+Data Engineer,Orchestration and ETL,dbt > Incremental models
+Data Engineer,Orchestration and ETL,Data ingestion > Batch vs real-time
+Data Engineer,Orchestration and ETL,Data ingestion > Idempotency and retries
+Data Engineer,Data Quality and Governance,Data validation and testing
+Data Engineer,Data Quality and Governance,Data lineage and catalogs
+Data Engineer,Data Quality and Governance,Data contracts
+Data Engineer,Data Quality and Governance,Privacy and compliance
+Data Engineer,Data Quality and Governance,Monitoring pipelines
+Data Engineer,Cloud Data Platforms,AWS > S3 and Glue
+Data Engineer,Cloud Data Platforms,AWS > Athena
+Data Engineer,Cloud Data Platforms,AWS > EMR
+Data Engineer,Cloud Data Platforms,AWS > Kinesis
+Data Engineer,Cloud Data Platforms,Azure > Data Factory
+Data Engineer,Cloud Data Platforms,Azure > Synapse
+Data Engineer,Cloud Data Platforms,Azure > Databricks
+Data Engineer,Cloud Data Platforms,Google Cloud > Dataflow
+Data Engineer,Cloud Data Platforms,Google Cloud > Pub/Sub
+Data Engineer,Cloud Data Platforms,Google Cloud > Dataproc
+Data Engineer,Architecture and Practices,Lambda and Kappa architecture
+Data Engineer,Architecture and Practices,Data mesh
+Data Engineer,Architecture and Practices,Medallion architecture
+Data Engineer,Architecture and Practices,CI/CD for data pipelines
+Data Engineer,Architecture and Practices,Cost and performance optimization

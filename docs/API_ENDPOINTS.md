@@ -417,11 +417,11 @@ Tables: `llm_settings`.
 
 ## 13. Catalog (shared tracks, subjects and topics)
 
-A shared, read-only-for-users library of what to study: tracks (for example *Full-Stack Java Developer*,
+A shared, read-only-for-users library of what to study: tracks (for example *Full-Stack Java Developer*, *DevOps Engineer*, *Data Engineer*, *QA and Test Automation Engineer*,
 *Python Developer*, *Angular Developer*, *React Developer*) hold subjects (*Core Java*), which hold a topic tree
 (*Collections › HashMap*). It has topics only, no questions. An empty catalog is filled at startup from
 `src/main/resources/catalog/*.csv` (`app.catalog.seed-on-startup`, env `CATALOG_SEED_ON_STARTUP`); it runs once and
-never when a track already exists. Tables: `catalog_tracks`, `catalog_subjects`, `catalog_topics`, and
+never when a track already exists, so files added later are loaded by uploading them through the admin import (it only adds what is missing, so uploading all of them again is safe). Tables: `catalog_tracks`, `catalog_subjects`, `catalog_topics`, and
 `subjects.catalog_subject_id`.
 
 | Method and path | What it does |
