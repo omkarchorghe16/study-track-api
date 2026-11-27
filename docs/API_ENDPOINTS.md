@@ -142,7 +142,7 @@ Tables: `topics`; the tree is built from one query, one grouped count over `ques
 
 | Method | Path | Body | Success |
 |---|---|---|---|
-| GET | `/api/v1/topics/{topicId}/items?status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse` |
+| GET | `/api/v1/topics/{topicId}/items?includeSubtopics=false&status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse` |
 | GET | `/api/v1/subjects/{subjectId}/items?status=&difficulty=&tag=&page=0&size=20` | | `200` `ItemPageResponse`: the current user's questions of the subject (`questions.subject_id`, `user_id`), ordered by topic then item (each has `topicId`); `404` for another user's subject |
 | GET | `/api/v1/items/{itemId}` | | `200` `ItemResponse` |
 | POST | `/api/v1/items` | `ItemRequest` | `201` + `Location`, `ItemResponse` |
@@ -150,7 +150,7 @@ Tables: `topics`; the tree is built from one query, one grouped count over `ques
 | PUT | `/api/v1/items/{itemId}` | `ItemRequest` | `200` `ItemResponse` |
 | DELETE | `/api/v1/items/{itemId}` | | `204` |
 
-- List: the topic's own items (not subtopics'), by `sortOrder` then `id`. `difficulty` is `EASY`/`MEDIUM`/`HARD`
+- List: the topic's own items by `sortOrder` then `id`; with `includeSubtopics=true` (default `false`) also the items of all its subtopics at every depth, ordered by topic (`sortOrder`, `id`), then item. The Angular app always sends `true`, so clicking a topic or a subtopic lists everything under it. `difficulty` is `EASY`/`MEDIUM`/`HARD`
   (other values `400`), `status` is `NOT_STARTED`/`LEARNING`/`DONE` for the current user, `tag` matches
   case-insensitively, `page` ≥0, `size` 1–100.
 - `ItemRequest`: `topicId` (required; a different topic on PUT moves the item), `itemType` (required),

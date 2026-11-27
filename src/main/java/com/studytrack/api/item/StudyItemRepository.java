@@ -12,13 +12,13 @@ import java.util.List;
 public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long> {
 
     /**
-     * Items of one topic; a null difficulty, tag or status means "any". The status is the user's
+     * Items of the given topics (one topic, or a topic with all its subtopics); a null difficulty, tag or status means "any". The status is the user's
      * (no progress row counts as NOT_STARTED, which the caller signals with {@code notStarted}).
-     * Ordered by sort order, then id.
+     * Ordered by the topic's sort order, then the item's.
      */
     @Query(value = """
-            select i from StudyItemEntity i
-            where i.topicId = :topicId
+            select i from StudyItemEntity i, TopicEntity t
+            where t.id = i.topicId and i.topicId in :topicIds
               and (:difficulty is null or i.difficulty = :difficulty)
               and (:tag is null or exists (select 1 from i.tags t where t.name = :tag))
               and (:status is null
@@ -26,10 +26,10 @@ public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long
                               where p.itemId = i.id and p.userId = :userId and p.status = :status)
                    or (:notStarted = true and not exists (select 1 from ItemProgressEntity p
                               where p.itemId = i.id and p.userId = :userId)))
-            order by i.sortOrder, i.id
+            order by t.sortOrder, t.id, i.sortOrder, i.id
             """, countQuery = """
             select count(i) from StudyItemEntity i
-            where i.topicId = :topicId
+            where i.topicId in :topicIds
               and (:difficulty is null or i.difficulty = :difficulty)
               and (:tag is null or exists (select 1 from i.tags t where t.name = :tag))
               and (:status is null
@@ -38,7 +38,7 @@ public interface StudyItemRepository extends JpaRepository<StudyItemEntity, Long
                    or (:notStarted = true and not exists (select 1 from ItemProgressEntity p
                               where p.itemId = i.id and p.userId = :userId)))
             """)
-    Page<StudyItemEntity> findTopicItems(Long topicId, Difficulty difficulty, String tag, ItemStatus status,
+    Page<StudyItemEntity> findTopicItems(Collection<Long> topicIds, Difficulty difficulty, String tag, ItemStatus status,
                                          boolean notStarted, Long userId, Pageable pageable);
 
     /**

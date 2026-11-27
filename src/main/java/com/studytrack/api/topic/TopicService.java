@@ -141,6 +141,22 @@ public class TopicService {
         }
     }
 
+    /** The ids of the topic and of all its subtopics, at every depth; the topic must belong to the current user. */
+    @Transactional(readOnly = true)
+    public List<Long> findSubtreeTopicIds(Long topicId) {
+        TopicEntity topic = findOwnedTopic(topicId);
+        Map<Long, List<TopicEntity>> childrenByParentId = topicRepository
+                .findBySubjectIdOrderBySortOrderAscIdAsc(topic.getSubjectId()).stream()
+                .filter(each -> each.getParentId() != null)
+                .collect(Collectors.groupingBy(TopicEntity::getParentId));
+        List<Long> topicIds = new ArrayList<>(List.of(topic.getId()));
+        for (int index = 0; index < topicIds.size(); index++) {
+            childrenByParentId.getOrDefault(topicIds.get(index), List.of())
+                    .forEach(child -> topicIds.add(child.getId()));
+        }
+        return topicIds;
+    }
+
     /** The topic at the end of a path and how many topics had to be created for it. */
     public record TopicPathResult(TopicEntity topic, int createdTopicCount) {
     }

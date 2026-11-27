@@ -109,6 +109,34 @@ class ItemIntegrationTest {
     }
 
     @Test
+    void topicListCanIncludeItemsOfAllSubtopicsAtEveryDepth() throws Exception {
+        long hashMap = api.createTopic(subjectId, topicId, "HashMap");
+        long internals = api.createTopic(subjectId, hashMap, "Internals");
+        long sibling = api.createTopic(subjectId, null, "Streams");
+        api.createItem(topicId, "Own question", "EASY", "[]");
+        api.createItem(hashMap, "Sub question", "EASY", "[]");
+        api.createItem(internals, "Deep question", "HARD", "[]");
+        api.createItem(sibling, "Other topic", "EASY", "[]");
+
+        mvc.perform(get("/api/v1/topics/" + topicId + "/items"))
+                .andExpect(jsonPath("$.totalItems").value(1));
+        mvc.perform(get("/api/v1/topics/" + topicId + "/items?includeSubtopics=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalItems").value(3))
+                .andExpect(jsonPath("$.items[0].title").value("Own question"))
+                .andExpect(jsonPath("$.items[1].title").value("Sub question"))
+                .andExpect(jsonPath("$.items[2].title").value("Deep question"));
+        mvc.perform(get("/api/v1/topics/" + hashMap + "/items?includeSubtopics=true"))
+                .andExpect(jsonPath("$.totalItems").value(2));
+        mvc.perform(get("/api/v1/topics/" + topicId + "/items?includeSubtopics=true&difficulty=HARD"))
+                .andExpect(jsonPath("$.totalItems").value(1))
+                .andExpect(jsonPath("$.items[0].title").value("Deep question"));
+        mvc.perform(get("/api/v1/topics/" + internals + "/items?includeSubtopics=true"))
+                .andExpect(jsonPath("$.totalItems").value(1));
+        mvc.perform(get("/api/v1/topics/901/items?includeSubtopics=true")).andExpect(status().isNotFound());
+    }
+
+    @Test
     void listsItemsOfAllTopicsInTheSubject() throws Exception {
         long streams = api.createTopic(subjectId, null, "Streams");
         api.createItem(topicId, "List vs set", "EASY", "[\"jvm\"]");

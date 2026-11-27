@@ -55,13 +55,18 @@ public class ItemService {
         this.currentUser = currentUser;
     }
 
+    /**
+     * One page of the topic's items. With {@code includeSubtopics} the items of all its subtopics (at every depth)
+     * are listed too, ordered by topic, then item.
+     */
     @Transactional(readOnly = true)
-    public ItemPageResponse listTopicItems(Long topicId, Difficulty difficulty, String tag, ItemStatus status,
-                                          int page, int size) {
+    public ItemPageResponse listTopicItems(Long topicId, boolean includeSubtopics, Difficulty difficulty, String tag,
+                                          ItemStatus status, int page, int size) {
         TopicEntity topic = topicService.findOwnedTopic(topicId);
+        List<Long> topicIds = includeSubtopics ? topicService.findSubtreeTopicIds(topic.getId()) : List.of(topic.getId());
         String tagName = tag == null || tag.isBlank() ? null : normalizeTag(tag);
         long userId = currentUser.getUserId();
-        Page<StudyItemEntity> items = studyItemRepository.findTopicItems(topic.getId(), difficulty, tagName, status,
+        Page<StudyItemEntity> items = studyItemRepository.findTopicItems(topicIds, difficulty, tagName, status,
                 status == ItemStatus.NOT_STARTED, userId, PageRequest.of(page, size));
         return toPage(items, page, size);
     }

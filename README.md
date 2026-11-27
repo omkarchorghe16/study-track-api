@@ -40,7 +40,7 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | POST | `/api/v1/topics` | Create a topic (top level or under a parent) |
 | GET, PUT, DELETE | `/api/v1/topics/{id}` | Read, replace or delete a topic (delete cascades to subtopics and items) |
 | PATCH | `/api/v1/topics/{id}/move` | New parent and sort order |
-| GET | `/api/v1/topics/{id}/items?status=&difficulty=&tag=&page=&size=` | One page of a topic's items with the user's status |
+| GET | `/api/v1/topics/{id}/items?includeSubtopics=&status=&difficulty=&tag=&page=&size=` | One page of a topic's items (with `includeSubtopics=true` also all its subtopics') with the user's status |
 | POST | `/api/v1/items` | Create an item |
 | POST | `/api/v1/items/duplicate-check` | Items of the subject with the same question (nothing is saved) |
 | GET | `/api/v1/items/search?q=&subjectId=&page=&size=` | Full-text search (PostgreSQL `tsvector`, word prefixes) with highlighted snippets |
