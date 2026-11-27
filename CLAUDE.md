@@ -53,5 +53,5 @@ docker compose up --build -d                     # app only (PostgreSQL on the h
   `src/test/resources/test-schema.sql`.
 - Every user-owned table has `user_id`. Until login exists, services use `AppProperties.currentUserId()`
   (default 1, seeded by V1); never trust a user id sent by the client.
-- Secrets (database password, later `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) come from environment
+- Secrets (database password, `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY`) come from environment
   variables or the git-ignored `.env` (copy `.env.example`). Never commit real values or log them.

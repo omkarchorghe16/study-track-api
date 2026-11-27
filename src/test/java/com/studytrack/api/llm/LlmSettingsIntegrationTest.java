@@ -47,11 +47,14 @@ class LlmSettingsIntegrationTest {
                 .andExpect(jsonPath("$.baseUrl").value("https://api.anthropic.com"))
                 .andExpect(jsonPath("$.enabled").value(true))
                 .andExpect(jsonPath("$.saved").value(false))
-                .andExpect(jsonPath("$.providers.length()").value(3))
+                .andExpect(jsonPath("$.providers.length()").value(4))
                 .andExpect(jsonPath("$.providers[0].provider").value("ANTHROPIC"))
                 .andExpect(jsonPath("$.providers[0].apiKeyConfigured").value(true))
                 .andExpect(jsonPath("$.providers[1].apiKeyConfigured").value(false))
-                .andExpect(jsonPath("$.providers[2].apiKeyRequired").value(false))
+                .andExpect(jsonPath("$.providers[2].provider").value("GROQ"))
+                .andExpect(jsonPath("$.providers[2].defaultModel").value("openai/gpt-oss-120b"))
+                .andExpect(jsonPath("$.providers[2].apiKeyConfigured").value(false))
+                .andExpect(jsonPath("$.providers[3].apiKeyRequired").value(false))
                 .andExpect(content().string(not(containsString("test-key-not-real"))));
     }
 

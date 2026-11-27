@@ -33,6 +33,7 @@ public record LlmProperties(
         @NotNull Duration retryDelay,
         @Valid @NotNull Anthropic anthropic,
         @Valid @NotNull OpenAi openai,
+        @Valid @NotNull Groq groq,
         @Valid @NotNull Ollama ollama) {
 
     /**
@@ -44,6 +45,17 @@ public record LlmProperties(
     public record OpenAi(@NotBlank String baseUrl, @NotBlank String model, String apiKey) {
     }
 
+    /**
+     * Groq's OpenAI-compatible API. Its own chunk and output limits keep one call (input plus
+     * {@code max_completion_tokens}) inside the free tier's tokens-per-minute limit.
+     *
+     * @param maxChunkTokens  replaces {@code app.llm.max-chunk-tokens} for Groq imports
+     * @param maxOutputTokens replaces {@code app.llm.max-output-tokens} for Groq calls
+     */
+    public record Groq(@NotBlank String baseUrl, @NotBlank String model, String apiKey,
+                       @Positive int maxChunkTokens, @Positive int maxOutputTokens) {
+    }
+
     /** @param contextTokens {@code num_ctx} for the model; chunk plus answer must fit */
     public record Ollama(@NotBlank String baseUrl, @NotBlank String model, @PositiveOrZero int contextTokens) {
     }
@@ -52,6 +64,7 @@ public record LlmProperties(
         return switch (llmProvider) {
             case ANTHROPIC -> anthropic.model();
             case OPENAI -> openai.model();
+            case GROQ -> groq.model();
             case OLLAMA -> ollama.model();
         };
     }
@@ -60,6 +73,7 @@ public record LlmProperties(
         return switch (llmProvider) {
             case ANTHROPIC -> anthropic.baseUrl();
             case OPENAI -> openai.baseUrl();
+            case GROQ -> groq.baseUrl();
             case OLLAMA -> ollama.baseUrl();
         };
     }
@@ -69,8 +83,19 @@ public record LlmProperties(
         String apiKey = switch (llmProvider) {
             case ANTHROPIC -> anthropic.apiKey();
             case OPENAI -> openai.apiKey();
+            case GROQ -> groq.apiKey();
             case OLLAMA -> null;
         };
         return apiKey == null || apiKey.isBlank() ? null : apiKey.strip();
+    }
+
+    /** Largest document chunk for one call to this provider. */
+    public int maxChunkTokens(LlmProvider llmProvider) {
+        return llmProvider == LlmProvider.GROQ ? groq.maxChunkTokens() : maxChunkTokens;
+    }
+
+    /** {@code max_tokens} of one call to this provider. */
+    public int maxOutputTokens(LlmProvider llmProvider) {
+        return llmProvider == LlmProvider.GROQ ? groq.maxOutputTokens() : maxOutputTokens;
     }
 }

@@ -13,17 +13,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** OpenAI Chat Completions ({@code POST /v1/chat/completions}) with a strict JSON Schema response format. */
+/**
+ * OpenAI Chat Completions ({@code POST /v1/chat/completions}) with a strict JSON Schema response format.
+ * Also the base of {@link GroqLlmClient}, whose API has the same shape.
+ */
 public class OpenAiLlmClient implements LlmClient {
-    private static final String PROVIDER_NAME = "OpenAI";
-
     private final RestClient restClient;
+    private final String providerName;
     private final String model;
     private final int maxOutputTokens;
 
     /** {@code restClient} must already carry the base URL, timeouts and the bearer token. */
     public OpenAiLlmClient(RestClient restClient, String model, int maxOutputTokens) {
+        this(restClient, "OpenAI", model, maxOutputTokens);
+    }
+
+    /** @param providerName name used in error and connection messages */
+    protected OpenAiLlmClient(RestClient restClient, String providerName, String model, int maxOutputTokens) {
         this.restClient = restClient;
+        this.providerName = providerName;
         this.model = model;
         this.maxOutputTokens = maxOutputTokens;
     }
@@ -74,15 +82,13 @@ public class OpenAiLlmClient implements LlmClient {
                 new ResponseFormat("json_schema", new JsonSchema("study_items", true, request.outputSchema())));
         ChatResponse response;
         try {
-            response = restClient.post().uri("/v1/chat/completions")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body).retrieve().body(ChatResponse.class);
+            response = sendChatRequest(body);
         } catch (RestClientException exception) {
-            throw LlmErrors.translateFailure(PROVIDER_NAME, exception);
+            throw LlmErrors.translateFailure(providerName, exception);
         }
         if (response == null || response.choices() == null || response.choices().isEmpty()
                 || response.choices().getFirst().message() == null) {
-            throw new LlmException(LlmException.Reason.UNAVAILABLE, "OpenAI returned an empty answer");
+            throw new LlmException(LlmException.Reason.UNAVAILABLE, providerName + " returned an empty answer");
         }
         Choice choice = response.choices().getFirst();
         if (choice.message().refusal() != null) {
@@ -98,13 +104,32 @@ public class OpenAiLlmClient implements LlmClient {
         return new LlmExtractionResult(text, inputTokens, outputTokens);
     }
 
+    /** One Chat Completions call; HTTP failures surface as {@link RestClientException}. */
+    protected ChatResponse sendChatRequest(ChatRequest body) {
+        return restClient.post().uri("/v1/chat/completions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body).retrieve().body(ChatResponse.class);
+    }
+
     @Override
     public LlmConnectionCheck testConnection() {
         try {
             restClient.get().uri("/v1/models/{model}", model).retrieve().toBodilessEntity();
-            return new LlmConnectionCheck(true, "Connected to OpenAI; model " + model + " is available");
+            return new LlmConnectionCheck(true, "Connected to " + providerName + "; model " + model + " is available");
         } catch (RestClientException exception) {
-            return new LlmConnectionCheck(false, LlmErrors.translateFailure(PROVIDER_NAME, exception).getMessage());
+            return new LlmConnectionCheck(false, LlmErrors.translateFailure(providerName, exception).getMessage());
         }
+    }
+
+    protected RestClient getRestClient() {
+        return restClient;
+    }
+
+    protected String getProviderName() {
+        return providerName;
+    }
+
+    protected String getModel() {
+        return model;
     }
 }

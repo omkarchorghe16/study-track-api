@@ -101,7 +101,8 @@ public class ImportProcessingService {
         byte[] content = mediaService.readMediaBytes(userId, job.getMediaId());
         ParsedDocument document = documentParser.parseDocument(job.getFileType(), content,
                 (imageBytes, altText) -> mediaService.storeImportedImage(userId, imageBytes, altText));
-        List<DocumentChunk> chunks = documentChunker.splitIntoChunks(document.blocks(), llmProperties.maxChunkTokens());
+        List<DocumentChunk> chunks = documentChunker.splitIntoChunks(document.blocks(),
+                llmProperties.maxChunkTokens(job.getLlmProvider()));
         if (chunks.isEmpty()) {
             throw new ImportFailure("No text was found in the document");
         }

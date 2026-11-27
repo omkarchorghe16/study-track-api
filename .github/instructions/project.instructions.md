@@ -90,12 +90,12 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 
 ## Integrations
 
-- LLM providers (Anthropic, OpenAI, Ollama) sit behind `llm.LlmClient` (`AnthropicLlmClient`,
-  `OpenAiLlmClient`, `OllamaLlmClient`), called with Spring `RestClient` built by `RestLlmClientFactory`
+- LLM providers (Anthropic, OpenAI, Groq, Ollama) sit behind `llm.LlmClient` (`AnthropicLlmClient`,
+  `OpenAiLlmClient`, `GroqLlmClient` (extends the OpenAI client; waits out 429s), `OllamaLlmClient`), called with Spring `RestClient` built by `RestLlmClientFactory`
   (bounded timeouts); no vendor SDKs. Use `spring-boot-provider-integration`. Clients translate HTTP
   failures into `LlmException` with a short, safe message (`LlmErrors`).
 - Which provider a user imports with comes from `llm_settings` (`LlmSettingsService`), falling back to
-  `app.llm` (`LlmProperties`). API keys exist only in `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`; never add a
+  `app.llm` (`LlmProperties`). API keys exist only in `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY`; never add a
   key column, accept a key in a request or return one.
 - Anthropic defaults: model `claude-opus-5-5`, API version header `2026-10-21`, structured output with
   the extraction JSON Schema, `output_config.effort` from `app.llm.anthropic.effort`, and the server-side

@@ -362,15 +362,15 @@ Tables: `import_jobs`, `import_candidates`, `media_files`; approval writes `topi
 | PUT | `/api/v1/settings/llm` | `LlmSettingsRequest` | `200` `LlmSettingsResponse` |
 | POST | `/api/v1/settings/llm/test` | `LlmSettingsRequest` (optional) | `200` `LlmConnectionTestResponse` |
 
-- `LlmSettingsRequest`: `provider` (`ANTHROPIC`/`OPENAI`/`OLLAMA`) and `model` (≤100) required, `baseUrl`
+- `LlmSettingsRequest`: `provider` (`ANTHROPIC`/`OPENAI`/`GROQ`/`OLLAMA`) and `model` (≤100) required, `baseUrl`
   (≤500; blank = provider default; must be `http(s)://host…` without user info, query or fragment, trailing
   `/` removed), `enabled` (default true; false makes new imports `409`). **API keys are never accepted or
-  returned**; they come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` on the server.
+  returned**; they come from `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `GROQ_API_KEY` on the server.
 - `LlmSettingsResponse`: `provider`, `model`, `baseUrl`, `enabled`, `saved` (false while the `app.llm`
   defaults apply), `providers` (each `provider`, `defaultModel`, `defaultBaseUrl`, `apiKeyRequired`,
   `apiKeyConfigured`).
 - Test checks the body's (unsaved) settings, or the saved ones without a body, without generating text:
-  Anthropic `GET /v1/models/{model}`, OpenAI `GET /v1/models/{model}`, Ollama `GET /api/tags` (the model must
+  Anthropic `GET /v1/models/{model}`, OpenAI `GET /v1/models/{model}`, Groq `GET /v1/models` (the model must be listed), Ollama `GET /api/tags` (the model must
   be pulled). `LlmConnectionTestResponse`: `ok`, `message` (the reason when not ok), `provider`, `model`.
 
 **Providers** (`llm` package, Spring `RestClient`, no vendor SDKs; `LlmClientFactory` picks the client):
@@ -379,6 +379,7 @@ Tables: `import_jobs`, `import_candidates`, `media_files`; approval writes `topi
 |---|---|---|
 | Anthropic (default) | `POST /v1/messages`, `anthropic-version: 2026-10-21` | Default model `claude-opus-5-5`; structured output (`output_config.format` = the JSON Schema), `output_config.effort` from `ANTHROPIC_EFFORT` (default `medium`). On models that support it, the server-side refusal fallback is on (`anthropic-beta: server-side-fallback-2026-07-01`, `fallbacks: "default"`). |
 | OpenAI | `POST /v1/chat/completions` | `response_format` strict `json_schema`; default model `gpt-4o-mini` |
+| Groq | `POST /openai/v1/chat/completions` (OpenAI-compatible) | Same request as OpenAI; default model `openai/gpt-oss-120b`. Free-tier sized: chunks of `GROQ_MAX_CHUNK_TOKENS` (1,500) and `max_completion_tokens` `GROQ_MAX_OUTPUT_TOKENS` (4,000). A `429` waits for `Retry-After` (≤60 s) and is sent again up to 3 times. |
 | Ollama | `POST /api/chat` (`stream: false`) | Local and free; the schema goes in `format`, `num_ctx` from `OLLAMA_CONTEXT_TOKENS` |
 
 Connect timeout 10 s, read timeout `app.llm.timeout` (`LLM_TIMEOUT`, default 5 minutes), `max_tokens`

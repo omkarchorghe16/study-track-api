@@ -6,8 +6,19 @@ set -euo pipefail
 db_name="${POSTGRES_DB:-study_track}"
 db_user="${POSTGRES_USER:-study_track}"
 db_password="${POSTGRES_PASSWORD:-admin}"
-admin_user="${PG_ADMIN_USER:-postgres}"
-psql_admin=(psql -v ON_ERROR_STOP=1 -h "${PG_HOST:-localhost}" -p "${POSTGRES_HOST_PORT:-5432}" -U "$admin_user" -d postgres)
+pg_host="${PG_HOST:-localhost}"
+pg_port="${POSTGRES_HOST_PORT:-5432}"
+
+# Admin user: PG_ADMIN_USER if set, else "postgres", else the macOS/Linux user
+# (Homebrew PostgreSQL makes the installing user the superuser and has no "postgres" role).
+if [[ -n "${PG_ADMIN_USER:-}" ]]; then
+  admin_user="$PG_ADMIN_USER"
+elif psql -h "$pg_host" -p "$pg_port" -U postgres -d postgres -tAc 'SELECT 1' >/dev/null 2>&1; then
+  admin_user=postgres
+else
+  admin_user="$(whoami)"
+fi
+psql_admin=(psql -v ON_ERROR_STOP=1 -h "$pg_host" -p "$pg_port" -U "$admin_user" -d postgres)
 
 if [[ ! $db_name =~ ^[a-z_][a-z0-9_]*$ || ! $db_user =~ ^[a-z_][a-z0-9_]*$ ]]; then
   printf 'POSTGRES_DB and POSTGRES_USER must be lower-case identifiers.\n' >&2

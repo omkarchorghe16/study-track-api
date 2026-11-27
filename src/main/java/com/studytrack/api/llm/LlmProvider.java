@@ -4,6 +4,7 @@ package com.studytrack.api.llm;
 public enum LlmProvider {
     ANTHROPIC(true),
     OPENAI(true),
+    GROQ(true),
     OLLAMA(false);
 
     private final boolean apiKeyRequired;

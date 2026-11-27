@@ -45,6 +45,9 @@ public class RestLlmClientFactory implements LlmClientFactory {
             case OPENAI -> new OpenAiLlmClient(
                     builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).build(),
                     settings.model(), llmProperties.maxOutputTokens());
+            case GROQ -> new GroqLlmClient(
+                    builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).build(),
+                    settings.model(), llmProperties.maxOutputTokens(provider));
             case OLLAMA -> new OllamaLlmClient(builder.build(), settings.model(),
                     llmProperties.ollama().contextTokens());
         };
@@ -54,6 +57,7 @@ public class RestLlmClientFactory implements LlmClientFactory {
         return switch (provider) {
             case ANTHROPIC -> "ANTHROPIC_API_KEY";
             case OPENAI -> "OPENAI_API_KEY";
+            case GROQ -> "GROQ_API_KEY";
             case OLLAMA -> "(none)";
         };
     }

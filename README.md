@@ -15,7 +15,7 @@ The full build plan, schema and endpoint list are in [`docs/BUILD_PLAN.md`](docs
 | 2 | Subjects, topics, items (CRUD) | **done** |
 | 3 | Media and rich content | **done** |
 | 4 | Progress tracking, dashboard numbers, flashcards | **done** |
-| 5 | LLM import (Anthropic, OpenAI, Ollama) with review before anything is saved | **done** |
+| 5 | LLM import (Anthropic, OpenAI, Groq, Ollama) with review before anything is saved | **done** |
 | 6 | Search, duplicate check, unused image cleanup (UI: shortcuts, toasts, theme) | **done** |
 | 7 | Accounts and deployment | deferred |
 
@@ -73,10 +73,14 @@ mvn spring-boot:run                  # Flyway applies the migrations on start
 open http://localhost:8083/swagger-ui.html
 ```
 
-`scripts/create-local-db.sh` connects as `postgres` by default; set `PG_ADMIN_USER`, `POSTGRES_DB`,
+`scripts/create-local-db.sh` connects as `postgres`, or as your OS user when there is no `postgres`
+role (Homebrew PostgreSQL); set `PG_ADMIN_USER`, `POSTGRES_DB`,
 `POSTGRES_USER` or `POSTGRES_PASSWORD` to change that.
 
 ### Configuration
+
+Local runs (IDE or `mvn spring-boot:run`) also read `KEY=value` lines from a git-ignored `.env` in the
+project folder; real environment variables win. Put `ANTHROPIC_API_KEY` there and restart the API.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -96,6 +100,8 @@ open http://localhost:8083/swagger-ui.html
 | `ANTHROPIC_API_KEY` | (none) | Claude API key. **Environment or `.env` only; never commit it.** |
 | `ANTHROPIC_MODEL` / `ANTHROPIC_EFFORT` | `claude-opus-5-5` / `medium` | Default Claude model and `output_config.effort` |
 | `OPENAI_API_KEY` / `OPENAI_MODEL` | (none) / `gpt-4o-mini` | OpenAI key and default model |
+| `GROQ_API_KEY` / `GROQ_MODEL` | (none) / `openai/gpt-oss-120b` | Groq key (free tier at console.groq.com/keys) and default model; the model must support strict JSON Schema output |
+| `GROQ_MAX_CHUNK_TOKENS` / `GROQ_MAX_OUTPUT_TOKENS` | `1500` / `4000` | Groq chunk size and output cap, sized for the free tier's ~8,000 tokens per minute; raise them on a paid tier |
 | `OLLAMA_BASE_URL` / `OLLAMA_MODEL` | `http://localhost:11434` / `llama3.1` | Local Ollama server and default model |
 | `LLM_TIMEOUT` | `PT5M` | Read timeout of one LLM call |
 | `LLM_MAX_CHUNK_TOKENS` / `LLM_MAX_CHUNKS_PER_JOB` | `6000` / `200` | Chunk size and the most LLM calls one import may make |
