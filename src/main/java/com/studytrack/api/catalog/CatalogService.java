@@ -3,6 +3,7 @@ package com.studytrack.api.catalog;
 import com.studytrack.api.catalog.CatalogDtos.CatalogSubjectResponse;
 import com.studytrack.api.catalog.CatalogDtos.CatalogTopicNodeResponse;
 import com.studytrack.api.catalog.CatalogDtos.CatalogTrackResponse;
+import com.studytrack.api.item.ItemContent;
 import com.studytrack.api.item.ItemService;
 import com.studytrack.api.item.ItemService.CatalogQuestionTemplate;
 import com.studytrack.api.subject.SubjectDtos.SubjectResponse;
@@ -44,6 +45,49 @@ public class CatalogService {
         this.subjectService = subjectService;
         this.topicService = topicService;
         this.itemService = itemService;
+    }
+
+    /** One catalog question as the user's copy of it reads: the subject, the topic and the question's plain text. */
+    public record CatalogQuestionRef(String subjectName, String topicName, String questionText) {
+    }
+
+    /**
+     * Every catalog question, by track, subject, topic and position. The text is what
+     * {@link #enrollInSubject} gives the user's copy once it is stored as HTML and read back as text, so an
+     * explanation saved for a reference here is found by the copy.
+     */
+    @Transactional(readOnly = true)
+    public List<CatalogQuestionRef> listCatalogQuestions() {
+        Map<Long, CatalogTopicEntity> topicsById = catalogTopicRepository.findAll().stream()
+                .collect(Collectors.toMap(CatalogTopicEntity::getId, topic -> topic));
+        Map<Long, CatalogSubjectEntity> subjectsById = catalogSubjectRepository.findAll().stream()
+                .collect(Collectors.toMap(CatalogSubjectEntity::getId, subject -> subject));
+        Map<Long, Integer> trackOrderById = catalogTrackRepository.findAllByOrderBySortOrderAscNameAsc().stream()
+                .collect(Collectors.toMap(CatalogTrackEntity::getId, CatalogTrackEntity::getSortOrder));
+        return catalogQuestionRepository.findAll().stream()
+                .sorted(java.util.Comparator
+                        .comparing((CatalogQuestionEntity question) -> trackOrderOf(question, topicsById, subjectsById, trackOrderById))
+                        .thenComparing(question -> subjectsById.get(topicsById.get(question.getCatalogTopicId()).getCatalogSubjectId()).getSortOrder())
+                        .thenComparing(question -> topicsById.get(question.getCatalogTopicId()).getSortOrder())
+                        .thenComparing(CatalogQuestionEntity::getSortOrder)
+                        .thenComparing(CatalogQuestionEntity::getId))
+                .map(question -> toQuestionRef(question, topicsById, subjectsById))
+                .toList();
+    }
+
+    private static int trackOrderOf(CatalogQuestionEntity question, Map<Long, CatalogTopicEntity> topicsById,
+                                    Map<Long, CatalogSubjectEntity> subjectsById, Map<Long, Integer> trackOrderById) {
+        CatalogSubjectEntity subject = subjectsById.get(topicsById.get(question.getCatalogTopicId()).getCatalogSubjectId());
+        return trackOrderById.getOrDefault(subject.getTrackId(), 0);
+    }
+
+    private static CatalogQuestionRef toQuestionRef(CatalogQuestionEntity question,
+                                                    Map<Long, CatalogTopicEntity> topicsById,
+                                                    Map<Long, CatalogSubjectEntity> subjectsById) {
+        CatalogTopicEntity topic = topicsById.get(question.getCatalogTopicId());
+        CatalogSubjectEntity subject = subjectsById.get(topic.getCatalogSubjectId());
+        String text = ItemContent.toPlainText(CatalogAnswerFormatter.formatToHtml(question.getQuestion()));
+        return new CatalogQuestionRef(subject.getName(), topic.getName(), text != null ? text : question.getQuestion());
     }
 
     @Transactional(readOnly = true)

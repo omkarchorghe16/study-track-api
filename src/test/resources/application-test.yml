@@ -13,6 +13,10 @@ spring:
       mode: always
       schema-locations: classpath:test-schema.sql
 app:
+  explanation:
+    prefill-pause: PT0S
+    prefill-failure-pause: PT0S
+    max-consecutive-failures: 2
   catalog:
     # Tests import the seed files themselves when they need them.
     seed-on-startup: false

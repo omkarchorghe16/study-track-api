@@ -8,5 +8,7 @@ public interface SharedExplanationRepository extends JpaRepository<SharedExplana
 
     Optional<SharedExplanationEntity> findByExplanationKey(String explanationKey);
 
+    boolean existsByExplanationKey(String explanationKey);
+
     void deleteByExplanationKey(String explanationKey);
 }

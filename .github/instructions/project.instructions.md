@@ -60,10 +60,11 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 
 ## Explanations
 
-- `explanation` uses `item`, `subject`, `topic`, `llm` and `user`; none of them import it. One explanation is shared by
+- `explanation` uses `item`, `subject`, `topic`, `catalog` (to list the catalog's questions), `llm` and `user`; none of them import it. One explanation is shared by
   all users (`shared_explanations`, keyed by subject name + question text) and is written by the AI only when none is
   saved, one call at a time, and only for a question the user opens: no bulk or background generation, because the
-  owner uses a free API key. Do not add any. The learner's answer is never sent to the AI.
+  owner uses a free API key. The one exception is the admin-started, one-off `CatalogExplanationPrefillService` for the
+  catalog's questions (paced, resumable, stops on repeated failures); never start it automatically. Do not add other bulk runs. The learner's answer is never sent to the AI.
 - It asks the user's configured provider through `LlmSettingsService.createClient` and `LlmClient.extract`, with its own
   prompt and JSON Schema in `ExplanationPrompt` (change how explanations are written there only). The reply is stored as
   JSON text, never HTML; the Angular app renders it as text.

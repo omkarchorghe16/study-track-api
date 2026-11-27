@@ -461,3 +461,18 @@ retried once with a correction. Table: `shared_explanations`.
 | `DELETE /api/v1/items/{questionId}/explanation` | Admin only (`403` otherwise): removes the saved explanation so the next `POST` writes a new one. `204`, also when none was saved |
 
 Prompts and answers are never logged.
+
+### Pre-filling the catalog's explanations (admin, one-off)
+
+So users find the catalog questions' explanations already saved instead of waiting for the AI, an admin can write the
+missing ones once. It is never started by itself.
+
+| Method and path | What it does |
+|---|---|
+| `POST /api/v1/admin/catalog/explanations/prefill` | Admin only (`403` otherwise). `202`: writes, in the background and one question at a time, the explanation of every catalog question that has none saved; a run in progress is just reported. Paced for a free API key (`app.explanation.prefill-pause`, default 4 s, and 30 s after a failure); stops at once when AI is off or the key is missing (`409` reason), and after `app.explanation.max-consecutive-failures` (default 5) failures in a row, usually a rate or daily limit. Saved ones are kept, so starting it again continues where it stopped |
+| `GET /api/v1/admin/catalog/explanations/status` | Admin only. `{state, total, completed, failed, missing, questions, message}`: `state` is `IDLE`, `RUNNING`, `COMPLETED` or `FAILED` (see `message`); `missing` counts catalog questions without a saved explanation. Progress is in memory (lost on restart); saved explanations are not |
+
+A pre-filled explanation is found by every user's copy of the question, because it is saved under the same key (subject
+name + question text) that opening the copy looks up. A user who renamed the subject, or edited the question, simply
+gets the AI call on first open. Environment variables: `EXPLANATION_PREFILL_PAUSE`, `EXPLANATION_PREFILL_FAILURE_PAUSE`,
+`EXPLANATION_MAX_CONSECUTIVE_FAILURES`.

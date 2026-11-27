@@ -66,10 +66,28 @@ public class ExplanationService {
     /** The saved explanation, or, when there is none, one written by the AI now and saved for everyone. */
     public ExplanationResponse findOrCreateExplanation(Long questionId) {
         StudyItemEntity question = itemService.findOwnedItem(questionId);
-        String key = computeExplanationKey(question);
+        QuestionContext context = new QuestionContext(
+                subjectService.findOwnedSubject(question.getSubjectId()).getName(),
+                topicService.findOwnedTopic(question.getTopicId()).getName(), readQuestionText(question));
+        return toResponse(questionId, findOrCreateSharedExplanation(context).explanation());
+    }
+
+    /**
+     * Writes the explanation for this subject and question text with the AI unless one is saved. Returns true when
+     * it had to call the AI. Used to pre-fill the catalog's questions.
+     */
+    public boolean writeExplanationIfMissing(QuestionContext context) {
+        return findOrCreateSharedExplanation(context).created();
+    }
+
+    private record FoundExplanation(SharedExplanationEntity explanation, boolean created) {
+    }
+
+    private FoundExplanation findOrCreateSharedExplanation(QuestionContext context) {
+        String key = ExplanationKeys.of(context.subjectName(), context.question());
         SharedExplanationEntity saved = sharedExplanationRepository.findByExplanationKey(key).orElse(null);
         if (saved != null) {
-            return toResponse(questionId, saved);
+            return new FoundExplanation(saved, false);
         }
         ImportLlmSettings settings = llmSettingsService.findImportSettings(currentUser.getUserId());
         if (!settings.enabled()) {
@@ -79,14 +97,11 @@ public class ExplanationService {
         try {
             SharedExplanationEntity savedMeanwhile = sharedExplanationRepository.findByExplanationKey(key).orElse(null);
             if (savedMeanwhile != null) {
-                return toResponse(questionId, savedMeanwhile);
+                return new FoundExplanation(savedMeanwhile, false);
             }
-            QuestionContext context = new QuestionContext(
-                    subjectService.findOwnedSubject(question.getSubjectId()).getName(),
-                    topicService.findOwnedTopic(question.getTopicId()).getName(), readQuestionText(question));
             GeneratedExplanation generated = callLlm(settings.connection(), context);
-            return toResponse(questionId, sharedExplanationRepository.save(new SharedExplanationEntity(key,
-                    generated.json(), settings.connection().provider(), settings.connection().model())));
+            return new FoundExplanation(sharedExplanationRepository.save(new SharedExplanationEntity(key,
+                    generated.json(), settings.connection().provider(), settings.connection().model())), true);
         } finally {
             generationLock.unlock();
         }
@@ -115,7 +130,7 @@ public class ExplanationService {
     /** Same subject name and question text (ignoring case and spacing) means the same explanation. */
     private String computeExplanationKey(StudyItemEntity question) {
         String subjectName = subjectService.findOwnedSubject(question.getSubjectId()).getName();
-        return ItemContent.computeContentHash(subjectName + " > " + readQuestionText(question), null);
+        return ExplanationKeys.of(subjectName, readQuestionText(question));
     }
 
     private static String readQuestionText(StudyItemEntity question) {

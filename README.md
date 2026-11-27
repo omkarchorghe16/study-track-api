@@ -35,6 +35,7 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | GET | `/api/v1/catalog/template.csv` | Sample catalog CSV (`track,subject,topic_path`) |
 | POST | `/api/v1/admin/catalog/import` | Admin only: add tracks, subjects, topics and starter questions from a CSV |
 | GET, POST, DELETE | `/api/v1/items/{id}/explanation` | The saved AI explanation of a question (GET never calls the AI); POST returns it or, only when none is saved, writes it with the AI once for all users; DELETE (admin) removes it so it is rewritten |
+| POST, GET | `/api/v1/admin/catalog/explanations/prefill`, `.../status` | Admin only: one-off background run that writes the AI explanation of every catalog question that has none, paced for a free key, and its progress |
 | GET, POST | `/api/v1/subjects` | List (with topic and item counts) or create subjects |
 | GET, PUT, DELETE | `/api/v1/subjects/{id}` | Read, replace or delete a subject (delete cascades) |
 | GET | `/api/v1/subjects/{id}/topics` | The subject's topic tree with item counts |
@@ -102,6 +103,9 @@ project folder; real environment variables win. Put `ANTHROPIC_API_KEY` there an
 | `MEDIA_CLEANUP_CRON` / `MEDIA_CLEANUP_GRACE` | `0 30 3 * * *` / `P7D` | When unused images are deleted (`-` = never) and how old they must be |
 | `IMPORT_MAX_FILE_BYTES` | `20971520` | Largest document an import accepts (20 MB) |
 | `CATALOG_SEED_ON_STARTUP` | `true` | Fills an empty catalog from `src/main/resources/catalog/*.csv` at startup (once) |
+| `EXPLANATION_PREFILL_PAUSE` | `PT4S` | Wait after each question of the admin's catalog explanation pre-fill (free keys allow few requests per minute) |
+| `EXPLANATION_PREFILL_FAILURE_PAUSE` | `PT30S` | Wait after a failed question |
+| `EXPLANATION_MAX_CONSECUTIVE_FAILURES` | `5` | The pre-fill stops after this many failures in a row |
 | `IMPORT_WORKER_THREADS` | `2` | Imports processed at the same time |
 | `LLM_PROVIDER` | `ANTHROPIC` | Default provider until a user saves settings (`ANTHROPIC`, `OPENAI`, `OLLAMA`) |
 | `ANTHROPIC_API_KEY` | (none) | Claude API key. **Environment or `.env` only; never commit it.** |

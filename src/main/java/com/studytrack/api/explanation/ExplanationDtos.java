@@ -45,4 +45,9 @@ public final class ExplanationDtos {
     public record ExplanationResponse(Long questionId, ExplanationContent content, LlmProvider provider, String model,
                                       Instant updatedAt) {
     }
+
+    /** Progress of the admin's catalog pre-fill. {@code state} is IDLE, RUNNING, COMPLETED or FAILED. */
+    public record PrefillStatusResponse(String state, int total, int completed, int failed, int missing,
+                                        int questions, String message) {
+    }
 }

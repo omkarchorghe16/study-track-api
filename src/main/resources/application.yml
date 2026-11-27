@@ -39,6 +39,12 @@ app:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4201}
   # Zone for "today" (due reviews, streaks, activity chart). Blank = the server's zone.
   time-zone: ${APP_TIME_ZONE:America/Chicago}
+  explanation:
+    # Admin pre-fill of the catalog's AI explanations: wait after each question (a free key allows few requests per
+    # minute), wait after a failure, and stop after this many failures in a row.
+    prefill-pause: ${EXPLANATION_PREFILL_PAUSE:PT4S}
+    prefill-failure-pause: ${EXPLANATION_PREFILL_FAILURE_PAUSE:PT30S}
+    max-consecutive-failures: ${EXPLANATION_MAX_CONSECUTIVE_FAILURES:5}
   catalog:
     # Fills an empty catalog from the CSV files in src/main/resources/catalog at startup (once).
     seed-on-startup: ${CATALOG_SEED_ON_STARTUP:true}

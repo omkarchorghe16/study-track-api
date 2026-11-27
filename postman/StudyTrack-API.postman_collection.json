@@ -1315,6 +1315,70 @@
               ]
             }
           }
+        },
+        {
+          "name": "Pre-fill catalog explanations (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('202, or 403 when not an admin', function () { pm.expect([202, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/catalog/explanations/prefill",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "catalog",
+                "explanations",
+                "prefill"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Catalog pre-fill status (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200, or 403 when not an admin', function () { pm.expect([200, 403]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/catalog/explanations/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "catalog",
+                "explanations",
+                "status"
+              ]
+            }
+          }
         }
       ]
     },
