@@ -1,6 +1,5 @@
 package com.studytrack.api.explanation;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.studytrack.api.llm.FakeLlmClientFactory;
 import com.studytrack.api.llm.LlmException;
@@ -14,10 +13,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -52,6 +57,8 @@ class ExplanationIntegrationTest {
     void resetData() throws Exception {
         jdbcTemplate.update("DELETE FROM study_track.llm_settings");
         jdbcTemplate.update("DELETE FROM study_track.subjects");
+        jdbcTemplate.update("DELETE FROM study_track.shared_explanations");
+        jdbcTemplate.update("UPDATE study_track.users SET is_admin = TRUE WHERE id = 1");
         fakeLlm.reset();
         fakeLlm.answerWith(request -> EXPLANATION_JSON);
         api = new StudyApiClient(mvc, objectMapper);
@@ -60,9 +67,10 @@ class ExplanationIntegrationTest {
     }
 
     @Test
-    void generatesStoresAndReadsAnExplanationAndCleansTheModelsText() throws Exception {
+    void getNeverCallsTheAiAndPostWritesOnceThenServesTheSavedOne() throws Exception {
         long questionId = api.createItem(topicId, "How does a HashMap work", "MEDIUM", "[]");
         mvc.perform(get("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isNotFound());
+        assertEquals(0, fakeLlm.getRequests().size());
 
         mvc.perform(post("/api/v1/items/" + questionId + "/explanation"))
                 .andExpect(status().isOk())
@@ -72,29 +80,78 @@ class ExplanationIntegrationTest {
                 .andExpect(jsonPath("$.content.howItWorks.length()").value(1))
                 .andExpect(jsonPath("$.content.example.language").value("java"))
                 .andExpect(jsonPath("$.content.realWorldExample.title").value("Shopping cart"))
-                .andExpect(jsonPath("$.provider").exists())
                 .andExpect(jsonPath("$.model").exists());
         mvc.perform(get("/api/v1/items/" + questionId + "/explanation"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.commonMistakes[0]").value("Mutable keys"));
+        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
+
         assertEquals(1, fakeLlm.getRequests().size());
         String prompt = fakeLlm.getRequests().getFirst().userPrompt();
-        assertTrue(prompt.contains("Subject: Java") && prompt.contains("Topic: Collections"), prompt);
+        assertTrue(prompt.contains("Subject: Java") && prompt.contains("Topic: Collections")
+                && prompt.contains("How does a HashMap work"), prompt);
+        assertFalse(prompt.contains("Answer"), "the learner's own answer must not be sent: " + prompt);
     }
 
     @Test
-    void generatingAgainReplacesTheExplanationInsteadOfAddingOne() throws Exception {
-        long questionId = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
-        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
-        fakeLlm.answerWith(request -> EXPLANATION_JSON.replace("stores key-value pairs", "maps keys to values"));
+    void sameQuestionInTheSameSubjectSharesOneExplanationEvenAfterTheFirstCopyIsDeleted() throws Exception {
+        long second = api.createTopic(subjectId, null, "Maps");
+        long first = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
+        long copy = api.createItem(second, "What is a HashMap", "EASY", "[]");
+        mvc.perform(post("/api/v1/items/" + first + "/explanation")).andExpect(status().isOk());
 
-        mvc.perform(post("/api/v1/items/" + questionId + "/explanation"))
-                .andExpect(jsonPath("$.content.summary").value("A HashMap maps keys to values in buckets."));
-        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.question_explanations", Integer.class));
+        mvc.perform(get("/api/v1/items/" + copy + "/explanation")).andExpect(status().isOk());
+        mvc.perform(delete("/api/v1/items/" + first)).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/items/" + copy)).andExpect(status().isNoContent());
+        long again = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
+        mvc.perform(post("/api/v1/items/" + again + "/explanation")).andExpect(status().isOk());
+
+        assertEquals(1, fakeLlm.getRequests().size());
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM study_track.shared_explanations", Integer.class));
     }
 
     @Test
-    void asksOnceMoreWhenTheFirstReplyIsNotJsonAndFailsAfterTwoBadReplies() throws Exception {
+    void theSameQuestionInAnotherSubjectGetsItsOwnExplanation() throws Exception {
+        long javaQuestion = api.createItem(topicId, "What is polymorphism", "EASY", "[]");
+        long pythonSubject = api.createSubject("Python");
+        long pythonQuestion = api.createItem(api.createTopic(pythonSubject, null, "OOP"), "What is polymorphism", "EASY", "[]");
+        mvc.perform(post("/api/v1/items/" + javaQuestion + "/explanation")).andExpect(status().isOk());
+
+        mvc.perform(get("/api/v1/items/" + pythonQuestion + "/explanation")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/items/" + pythonQuestion + "/explanation")).andExpect(status().isOk());
+        assertEquals(2, fakeLlm.getRequests().size());
+    }
+
+    @Test
+    void twoUsersOpeningTheSameNewQuestionAtOnceCauseOneAiCall() throws Exception {
+        long first = api.createItem(topicId, "What is a deadlock", "EASY", "[]");
+        long copy = api.createItem(api.createTopic(subjectId, null, "Threads"), "What is a deadlock", "EASY", "[]");
+        AtomicInteger calls = new AtomicInteger();
+        fakeLlm.answerWith(request -> {
+            calls.incrementAndGet();
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
+            return EXPLANATION_JSON;
+        });
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<Integer>> results = List.of(
+                    pool.submit(() -> mvc.perform(post("/api/v1/items/" + first + "/explanation")).andReturn().getResponse().getStatus()),
+                    pool.submit(() -> mvc.perform(post("/api/v1/items/" + copy + "/explanation")).andReturn().getResponse().getStatus()));
+            for (Future<Integer> result : results) {
+                assertEquals(200, result.get());
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void asksOnceMoreWhenTheFirstReplyIsNotJsonAndFailsAfterTwoBadRepliesWithoutSavingAnything() throws Exception {
         long questionId = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
         AtomicInteger calls = new AtomicInteger();
         fakeLlm.answerWith(request -> calls.incrementAndGet() == 1 ? "not json" : EXPLANATION_JSON);
@@ -102,7 +159,7 @@ class ExplanationIntegrationTest {
         assertEquals(2, calls.get());
         assertTrue(fakeLlm.getRequests().get(1).isRetry());
 
-        jdbcTemplate.update("DELETE FROM study_track.question_explanations");
+        jdbcTemplate.update("DELETE FROM study_track.shared_explanations");
         fakeLlm.answerWith(request -> "{\"summary\":\"\"}");
         mvc.perform(post("/api/v1/items/" + questionId + "/explanation"))
                 .andExpect(status().isFailedDependency())
@@ -130,73 +187,34 @@ class ExplanationIntegrationTest {
         mvc.perform(post("/api/v1/items/" + questionId + "/explanation"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("AI is turned off in Settings"));
+        assertEquals(0, fakeLlm.getRequests().size());
         mvc.perform(post("/api/v1/items/999999/explanation")).andExpect(status().isNotFound());
     }
 
     @Test
-    void explainsAllMissingQuestionsOfASubjectInTheBackground() throws Exception {
-        long first = api.createItem(topicId, "First question", "EASY", "[]");
-        api.createItem(topicId, "Second question", "EASY", "[]");
-        api.createItem(topicId, "Third question", "EASY", "[]");
-        mvc.perform(post("/api/v1/items/" + first + "/explanation")).andExpect(status().isOk());
-        fakeLlm.reset();
-        fakeLlm.answerWith(request -> EXPLANATION_JSON);
+    void savedExplanationIsServedEvenWhenAiIsTurnedOff() throws Exception {
+        long questionId = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
+        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
+        jdbcTemplate.update("INSERT INTO study_track.llm_settings (user_id, provider, model, enabled) VALUES (1, 'GROQ', 'm', FALSE)");
 
-        mvc.perform(get("/api/v1/subjects/" + subjectId + "/explanations/status"))
-                .andExpect(jsonPath("$.state").value("IDLE"))
-                .andExpect(jsonPath("$.missing").value(2));
-        mvc.perform(post("/api/v1/subjects/" + subjectId + "/explanations"))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.total").value(2));
-
-        JsonNode statusBody = waitUntilFinished();
-        assertEquals("COMPLETED", statusBody.get("state").asText());
-        assertEquals(2, statusBody.get("completed").asInt());
-        assertEquals(0, statusBody.get("failed").asInt());
-        assertEquals(0, statusBody.get("missing").asInt());
-        assertEquals(2, fakeLlm.getRequests().size());
-        mvc.perform(post("/api/v1/subjects/" + subjectId + "/explanations"))
-                .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.total").value(0))
-                .andExpect(jsonPath("$.state").value("COMPLETED"));
-        mvc.perform(post("/api/v1/subjects/999999/explanations")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
+        assertEquals(1, fakeLlm.getRequests().size());
     }
 
     @Test
-    void backgroundRunCountsFailuresAndStopsWhenTheKeyIsMissing() throws Exception {
-        api.createItem(topicId, "First question", "EASY", "[]");
-        api.createItem(topicId, "Second question", "EASY", "[]");
-        AtomicInteger calls = new AtomicInteger();
-        fakeLlm.answerWith(request -> {
-            if (calls.incrementAndGet() == 1) {
-                throw new LlmException(LlmException.Reason.REJECTED, "Rejected");
-            }
-            return EXPLANATION_JSON;
-        });
-        mvc.perform(post("/api/v1/subjects/" + subjectId + "/explanations")).andExpect(status().isAccepted());
-        JsonNode mixed = waitUntilFinished();
-        assertEquals(1, mixed.get("completed").asInt());
-        assertEquals(1, mixed.get("failed").asInt());
+    void onlyAnAdminCanRemoveASavedExplanationAndTheNextPostWritesAgain() throws Exception {
+        long questionId = api.createItem(topicId, "What is a HashMap", "EASY", "[]");
+        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
 
-        long topic2 = api.createTopic(subjectId, null, "More");
-        api.createItem(topic2, "Third question", "EASY", "[]");
-        fakeLlm.failClientCreation(new LlmException(LlmException.Reason.CONFIGURATION, "GROQ_API_KEY is not set"));
-        mvc.perform(post("/api/v1/subjects/" + subjectId + "/explanations")).andExpect(status().isAccepted());
-        JsonNode stopped = waitUntilFinished();
-        assertEquals("FAILED", stopped.get("state").asText());
-        assertEquals("GROQ_API_KEY is not set", stopped.get("message").asText());
-    }
+        jdbcTemplate.update("UPDATE study_track.users SET is_admin = FALSE WHERE id = 1");
+        mvc.perform(delete("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
 
-    private JsonNode waitUntilFinished() throws Exception {
-        for (int attempt = 0; attempt < 100; attempt++) {
-            String body = mvc.perform(get("/api/v1/subjects/" + subjectId + "/explanations/status"))
-                    .andReturn().getResponse().getContentAsString();
-            JsonNode node = objectMapper.readTree(body);
-            if (!"RUNNING".equals(node.get("state").asText())) {
-                return node;
-            }
-            Thread.sleep(50);
-        }
-        throw new AssertionError("The background run did not finish");
+        jdbcTemplate.update("UPDATE study_track.users SET is_admin = TRUE WHERE id = 1");
+        mvc.perform(delete("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/items/" + questionId + "/explanation")).andExpect(status().isOk());
+        assertEquals(2, fakeLlm.getRequests().size());
+        mvc.perform(delete("/api/v1/items/999999/explanation")).andExpect(status().isNotFound());
     }
 }

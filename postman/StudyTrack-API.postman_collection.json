@@ -1224,7 +1224,7 @@
       "name": "Explanations",
       "item": [
         {
-          "name": "Get explanation of an item",
+          "name": "Get saved explanation of an item",
           "event": [
             {
               "listen": "test",
@@ -1255,7 +1255,7 @@
           }
         },
         {
-          "name": "Write explanation with the AI",
+          "name": "Get or write explanation with the AI (once per question)",
           "event": [
             {
               "listen": "test",
@@ -1286,64 +1286,32 @@
           }
         },
         {
-          "name": "Explain all questions of a subject",
+          "name": "Remove saved explanation (admin)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Accepted', function () { pm.response.to.have.status(202); });"
+                  "pm.test('204, or 403 when not an admin', function () { pm.expect([204, 403]).to.include(pm.response.code); });"
                 ]
               }
             }
           ],
           "request": {
-            "method": "POST",
+            "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/v1/subjects/{{subjectId}}/explanations",
+              "raw": "{{baseUrl}}/api/v1/items/{{itemId}}/explanation",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
                 "v1",
-                "subjects",
-                "{{subjectId}}",
-                "explanations"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Status of the subject run",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/subjects/{{subjectId}}/explanations/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "subjects",
-                "{{subjectId}}",
-                "explanations",
-                "status"
+                "items",
+                "{{itemId}}",
+                "explanation"
               ]
             }
           }

@@ -34,8 +34,7 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | POST | `/api/v1/catalog/subjects/{id}/enroll` | Copy a catalog subject, its topic tree and its starter questions into the user's own subjects |
 | GET | `/api/v1/catalog/template.csv` | Sample catalog CSV (`track,subject,topic_path`) |
 | POST | `/api/v1/admin/catalog/import` | Admin only: add tracks, subjects, topics and starter questions from a CSV |
-| GET, POST | `/api/v1/items/{id}/explanation` | Read, or write with the AI, the detailed explanation of a question (summary, key points, steps, code example, real-world example, mistakes, interview tip) |
-| POST, GET | `/api/v1/subjects/{id}/explanations`, `.../explanations/status` | Explain all questions of a subject in the background, and follow its progress |
+| GET, POST, DELETE | `/api/v1/items/{id}/explanation` | The saved AI explanation of a question (GET never calls the AI); POST returns it or, only when none is saved, writes it with the AI once for all users; DELETE (admin) removes it so it is rewritten |
 | GET, POST | `/api/v1/subjects` | List (with topic and item counts) or create subjects |
 | GET, PUT, DELETE | `/api/v1/subjects/{id}` | Read, replace or delete a subject (delete cascades) |
 | GET | `/api/v1/subjects/{id}/topics` | The subject's topic tree with item counts |

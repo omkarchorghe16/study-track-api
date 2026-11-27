@@ -45,9 +45,4 @@ public final class ExplanationDtos {
     public record ExplanationResponse(Long questionId, ExplanationContent content, LlmProvider provider, String model,
                                       Instant updatedAt) {
     }
-
-    /** Progress of the background run for a subject. {@code state} is IDLE, RUNNING, COMPLETED or FAILED. */
-    public record ExplanationBatchResponse(String state, int total, int completed, int failed, int missing,
-                                           String message) {
-    }
 }

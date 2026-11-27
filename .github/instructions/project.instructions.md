@@ -60,13 +60,15 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 
 ## Explanations
 
-- `explanation` uses `item`, `subject`, `topic`, `llm` and `user`; none of them import it. It asks the user's
-  configured provider through `LlmSettingsService.createClient` and `LlmClient.extract`, with its own prompt and
-  JSON Schema in `ExplanationPrompt` (change how explanations are written there only). The model's reply is
-  stored as JSON text in `question_explanations.content` and is never HTML; the Angular app renders it as text.
-- The LLM call runs outside any transaction. 409 means the user must fix settings (AI off, key missing), 424 means
-  the provider failed or gave no usable answer; both carry a message that is safe to show. The batch run
-  (`ExplanationBatchRunner`, one worker thread) stops on 409 and counts other failures. Never log prompts or answers.
+- `explanation` uses `item`, `subject`, `topic`, `llm` and `user`; none of them import it. One explanation is shared by
+  all users (`shared_explanations`, keyed by subject name + question text) and is written by the AI only when none is
+  saved, one call at a time, and only for a question the user opens: no bulk or background generation, because the
+  owner uses a free API key. Do not add any. The learner's answer is never sent to the AI.
+- It asks the user's configured provider through `LlmSettingsService.createClient` and `LlmClient.extract`, with its own
+  prompt and JSON Schema in `ExplanationPrompt` (change how explanations are written there only). The reply is stored as
+  JSON text, never HTML; the Angular app renders it as text.
+- The LLM call runs outside any transaction. 409 means the user must fix settings (AI off, key missing), 424 means the
+  provider failed or gave no usable answer; both carry a message that is safe to show. Never log prompts or answers.
 
 ## Users
 

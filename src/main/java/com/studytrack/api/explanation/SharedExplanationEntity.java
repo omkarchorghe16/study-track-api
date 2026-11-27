@@ -14,19 +14,16 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** The AI-written explanation of one question; {@code content} is the JSON of an ExplanationContent. */
+/** The AI-written explanation of a question, shared by all users; {@code content} is the JSON of an ExplanationContent. */
 @Entity
-@Table(name = "question_explanations")
-public class QuestionExplanationEntity {
+@Table(name = "shared_explanations")
+public class SharedExplanationEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "question_id", nullable = false, updatable = false)
-    private Long questionId;
-
-    @Column(name = "user_id", nullable = false, updatable = false)
-    private Long userId;
+    @Column(name = "explanation_key", nullable = false, updatable = false, length = 64)
+    private String explanationKey;
 
     @Column(nullable = false)
     private String content;
@@ -44,12 +41,14 @@ public class QuestionExplanationEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected QuestionExplanationEntity() {
+    protected SharedExplanationEntity() {
     }
 
-    public QuestionExplanationEntity(Long questionId, Long userId) {
-        this.questionId = questionId;
-        this.userId = userId;
+    public SharedExplanationEntity(String explanationKey, String content, LlmProvider llmProvider, String llmModel) {
+        this.explanationKey = explanationKey;
+        this.content = content;
+        this.llmProvider = llmProvider;
+        this.llmModel = llmModel;
     }
 
     @PrePersist
@@ -63,23 +62,8 @@ public class QuestionExplanationEntity {
         updatedAt = Instant.now();
     }
 
-    /** Replaces the text and records which model wrote it. */
-    public void replaceContent(String newContent, LlmProvider provider, String model) {
-        this.content = newContent;
-        this.llmProvider = provider;
-        this.llmModel = model;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public Long getQuestionId() {
-        return questionId;
-    }
-
-    public Long getUserId() {
-        return userId;
+    public String getExplanationKey() {
+        return explanationKey;
     }
 
     public String getContent() {

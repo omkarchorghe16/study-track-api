@@ -11,7 +11,7 @@ section 4 and move here as they are built.
 
 ## 1. Database overview
 
-Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V16). Since V10 every table lives in the
+Schema is managed by Flyway (`src/main/resources/db/migration`, V1–V17). Since V10 every table lives in the
 PostgreSQL schema **`study_track`** (Flyway's `flyway_schema_history` stays in `public`), and every table and
 column has a `COMMENT` (see `\d+ study_track.questions` in psql or the IDE's database view). Hibernate runs
 with `ddl-auto: validate` and `hibernate.default_schema: study_track`; native SQL writes `study_track.<table>`.
@@ -31,7 +31,7 @@ Java class names are older than the V10 table names; the Entity column maps them
 | `catalog_subjects` | Shared subjects of a track | `id`, `track_id` → `catalog_tracks` ON DELETE CASCADE, `name` ≤120 UNIQUE per track, `description`, `icon`, `sort_order` | `CatalogSubjectEntity` |
 | `catalog_topics` | Shared topic tree of a catalog subject | `id`, `catalog_subject_id` → `catalog_subjects` ON DELETE CASCADE, `parent_id` → `catalog_topics` ON DELETE CASCADE, `name` ≤200, `sort_order` | `CatalogTopicEntity` |
 | `catalog_questions` | Starter questions and answers under a catalog topic (V15), plain text | `id`, `catalog_topic_id` → `catalog_topics` ON DELETE CASCADE, `question` ≤1000, `answer`, `difficulty` (`EASY`/`MEDIUM`/`HARD`), `sort_order` | `CatalogQuestionEntity` |
-| `question_explanations` | AI-written detailed explanation of a question (V16), next to its own answer | `id`, `question_id` → `questions` ON DELETE CASCADE UNIQUE, `user_id`, `content` (JSON text), `llm_provider`, `llm_model`, `created_at`, `updated_at` | `QuestionExplanationEntity` |
+| `shared_explanations` | AI-written detailed explanation of a question, shared by all users (V17; replaces V16's per-user `question_explanations`) | `id`, `explanation_key` (SHA-256 of subject name + question text) UNIQUE, `content` (JSON text), `llm_provider`, `llm_model`, `created_at`, `updated_at` | `SharedExplanationEntity` |
 | `flashcard_reviews` | One row per flashcard rating | `id`, `user_id`, `question_id` → `questions` ON DELETE CASCADE, `result` (`AGAIN`/`HARD`/`GOOD`/`EASY`), `reviewed_at` | `ReviewLogEntity` |
 | `resume_points` | "Continue where you left off", per subject | `id`, `user_id`, `subject_id` → `subjects` ON DELETE CASCADE, `last_topic_id` → `topics` ON DELETE SET NULL, `last_question_id` → `questions` ON DELETE SET NULL, `updated_at`; UNIQUE(`user_id`,`subject_id`) | `StudySessionEntity` |
 | `media_files` | Uploaded images and import documents | `id`, `user_id` → `users`, `question_id` → `questions` ON DELETE SET NULL (null = not used by a question yet, or a document), `original_name` ≤255, `content_type`, `size_bytes` >0, `storage_key` UNIQUE (`yyyy/MM/<uuid>.<ext>` under `app.media.storage-dir`), `width`, `height`, `alt_text` ≤500, `created_at` | `MediaFileEntity` |
@@ -438,21 +438,26 @@ never when a track already exists, so files added later are loaded by uploading 
 
 Until login exists the current user is user 1, who is an admin (`users.is_admin`).
 
-## 14. Explanations (AI, detailed answers)
+## 14. Explanations (AI, detailed answers, shared)
 
 An AI-written, structured explanation of a question, kept **next to** the question's own answer (the answer is never
-changed). It uses the provider and model saved on the Settings page (Groq, OpenAI, Anthropic or Ollama; the API key
-only ever comes from the server's environment). The model returns JSON that the app draws as cards: `summary`,
-`analogy`, `keyPoints`, `howItWorks` (steps), `example` (title, language, code, explanation), `realWorldExample`
-(title, scenario, howItApplies), `commonMistakes`, `interviewTip`. It is plain text, never HTML, so nothing needs
-sanitising; the app escapes it. Text is trimmed, lists are capped at 8 items and code at 4,000 characters; an
-unusable reply is retried once with a correction. Table: `question_explanations`.
+changed). It is **saved once and shared by all users**: it is found by the subject name and the question text
+(ignoring case and spacing), so the same question in the same subject has one explanation. The AI is called **only
+when nothing is saved** and only when someone opens that question in the app, never in bulk; free API keys stay
+within their limits because calls run one at a time (a second user opening the same new question waits for the first
+call and then reads its result). The learner's own answer is not sent to the AI.
+
+It uses the provider and model saved on the Settings page (Groq, OpenAI, Anthropic or Ollama; the API key only ever
+comes from the server's environment). The model returns JSON that the app draws as cards: `summary`, `analogy`,
+`keyPoints`, `howItWorks` (steps), `example` (title, language, code, explanation), `realWorldExample` (title,
+scenario, howItApplies), `commonMistakes`, `interviewTip`. It is plain text, never HTML, so nothing needs sanitising;
+the app escapes it. Text is trimmed, lists are capped at 8 items and code at 4,000 characters; an unusable reply is
+retried once with a correction. Table: `shared_explanations`.
 
 | Method and path | What it does |
 |---|---|
-| `GET /api/v1/items/{questionId}/explanation` | `200` `{questionId, content, provider, model, updatedAt}`, or `404` when there is none yet |
-| `POST /api/v1/items/{questionId}/explanation` | Writes (or rewrites) it with the AI, replacing an earlier one; can take up to a minute. `409` when AI is turned off in Settings or the provider's API key is not set, `424` when the provider failed or gave no usable answer (the message is safe to show), `404` for an unknown question |
-| `POST /api/v1/subjects/{subjectId}/explanations` | `202`: explains every QUESTION of the subject that has none yet, in the background, one after another (rate limits are waited out by the Groq client). Reports `{state, total, completed, failed, missing, message}`; starting again while running just reports |
-| `GET /api/v1/subjects/{subjectId}/explanations/status` | The same report: `state` is `IDLE`, `RUNNING`, `COMPLETED` or `FAILED` (stopped because AI is off or the key is missing); `missing` counts questions still without one. Progress is in memory (lost on restart); saved explanations are not |
+| `GET /api/v1/items/{questionId}/explanation` | The saved explanation `{questionId, content, provider, model, updatedAt}`; `404` when none is saved yet (also for an unknown question). Never calls the AI |
+| `POST /api/v1/items/{questionId}/explanation` | Returns the saved explanation; only when there is none, writes one with the AI (up to a minute) and saves it for everyone. A saved explanation is served even when AI is off. `409` when AI is turned off in Settings or the provider's API key is not set, `424` when the provider failed or gave no usable answer (the message is safe to show), `404` for an unknown question |
+| `DELETE /api/v1/items/{questionId}/explanation` | Admin only (`403` otherwise): removes the saved explanation so the next `POST` writes a new one. `204`, also when none was saved |
 
 Prompts and answers are never logged.

@@ -29,8 +29,13 @@ public class CurrentUser {
 
     /** Throws 403 unless the current user is an admin. */
     public void requireAdmin() {
+        requireAdmin("change the catalog");
+    }
+
+    /** Throws 403 "Only an admin can {action}" unless the current user is an admin. */
+    public void requireAdmin(String action) {
         if (!isAdmin()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only an admin can change the catalog");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only an admin can " + action);
         }
     }
 }
