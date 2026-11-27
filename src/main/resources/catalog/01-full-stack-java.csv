@@ -1,0 +1,198 @@
+track,subject,topic_path
+Full-Stack Java Developer,Core Java,Language basics > Data types and variables
+Full-Stack Java Developer,Core Java,Language basics > Operators and control flow
+Full-Stack Java Developer,Core Java,Language basics > Arrays and strings
+Full-Stack Java Developer,Core Java,"Language basics > String, StringBuilder and StringBuffer"
+Full-Stack Java Developer,Core Java,Language basics > Type casting and wrapper classes
+Full-Stack Java Developer,Core Java,Language basics > Autoboxing and unboxing
+Full-Stack Java Developer,Core Java,Object-oriented programming > Classes and objects
+Full-Stack Java Developer,Core Java,Object-oriented programming > Constructors and initialization blocks
+Full-Stack Java Developer,Core Java,Object-oriented programming > Inheritance and super
+Full-Stack Java Developer,Core Java,Object-oriented programming > Polymorphism: overloading and overriding
+Full-Stack Java Developer,Core Java,Object-oriented programming > Encapsulation and access modifiers
+Full-Stack Java Developer,Core Java,Object-oriented programming > Abstraction: abstract classes and interfaces
+Full-Stack Java Developer,Core Java,"Object-oriented programming > static, final and this"
+Full-Stack Java Developer,Core Java,"Object-oriented programming > Inner, nested and anonymous classes"
+Full-Stack Java Developer,Core Java,"Exception handling > try, catch, finally"
+Full-Stack Java Developer,Core Java,Exception handling > Checked vs unchecked exceptions
+Full-Stack Java Developer,Core Java,Exception handling > Custom exceptions
+Full-Stack Java Developer,Core Java,Exception handling > try-with-resources
+Full-Stack Java Developer,Core Java,"Collections framework > List: ArrayList, LinkedList, Vector"
+Full-Stack Java Developer,Core Java,"Collections framework > Set: HashSet, LinkedHashSet, TreeSet"
+Full-Stack Java Developer,Core Java,"Collections framework > Map: HashMap, LinkedHashMap, TreeMap"
+Full-Stack Java Developer,Core Java,Collections framework > HashMap internals
+Full-Stack Java Developer,Core Java,Collections framework > ConcurrentHashMap
+Full-Stack Java Developer,Core Java,"Collections framework > Queue, Deque and PriorityQueue"
+Full-Stack Java Developer,Core Java,Collections framework > Comparable and Comparator
+Full-Stack Java Developer,Core Java,Collections framework > Iterator and fail-fast vs fail-safe
+Full-Stack Java Developer,Core Java,Collections framework > equals() and hashCode() contract
+Full-Stack Java Developer,Core Java,Collections framework > Collections and Arrays utility classes
+Full-Stack Java Developer,Core Java,Generics > Generic classes and methods
+Full-Stack Java Developer,Core Java,Generics > Bounded types and wildcards
+Full-Stack Java Developer,Core Java,Generics > Type erasure
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > Thread lifecycle and creating threads
+Full-Stack Java Developer,Core Java,"Multithreading and concurrency > Runnable, Callable and Future"
+Full-Stack Java Developer,Core Java,"Multithreading and concurrency > synchronized, wait and notify"
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > volatile and the Java Memory Model
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > Locks and ReentrantLock
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > Executor framework and thread pools
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > CompletableFuture
+Full-Stack Java Developer,Core Java,"Multithreading and concurrency > Deadlock, livelock and starvation"
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > Atomic classes and concurrent collections
+Full-Stack Java Developer,Core Java,Multithreading and concurrency > Virtual threads
+Full-Stack Java Developer,Core Java,"Java I/O and NIO > Streams, readers and writers"
+Full-Stack Java Developer,Core Java,Java I/O and NIO > Serialization
+Full-Stack Java Developer,Core Java,Java I/O and NIO > NIO Files and Paths
+Full-Stack Java Developer,Core Java,"Memory management > Heap, stack and metaspace"
+Full-Stack Java Developer,Core Java,Memory management > Garbage collection algorithms
+Full-Stack Java Developer,Core Java,Memory management > Memory leaks and tuning
+Full-Stack Java Developer,Core Java,Memory management > Class loading
+Full-Stack Java Developer,Core Java,Reflection and annotations > Reflection API
+Full-Stack Java Developer,Core Java,Reflection and annotations > Custom annotations
+Full-Stack Java Developer,Modern Java (8 to 21),Lambda expressions
+Full-Stack Java Developer,Modern Java (8 to 21),Functional interfaces
+Full-Stack Java Developer,Modern Java (8 to 21),"Streams API > map, filter and reduce"
+Full-Stack Java Developer,Modern Java (8 to 21),Streams API > Collectors and grouping
+Full-Stack Java Developer,Modern Java (8 to 21),Streams API > Parallel streams
+Full-Stack Java Developer,Modern Java (8 to 21),Optional
+Full-Stack Java Developer,Modern Java (8 to 21),Date and Time API
+Full-Stack Java Developer,Modern Java (8 to 21),Default and static interface methods
+Full-Stack Java Developer,Modern Java (8 to 21),var and local type inference
+Full-Stack Java Developer,Modern Java (8 to 21),Records
+Full-Stack Java Developer,Modern Java (8 to 21),Sealed classes
+Full-Stack Java Developer,Modern Java (8 to 21),Pattern matching and switch expressions
+Full-Stack Java Developer,Modern Java (8 to 21),Text blocks
+Full-Stack Java Developer,Modern Java (8 to 21),Modules (JPMS)
+Full-Stack Java Developer,Data Structures and Algorithms,Complexity analysis > Big-O notation
+Full-Stack Java Developer,Data Structures and Algorithms,Complexity analysis > Space vs time trade-offs
+Full-Stack Java Developer,Data Structures and Algorithms,Arrays and strings > Two pointers
+Full-Stack Java Developer,Data Structures and Algorithms,Arrays and strings > Sliding window
+Full-Stack Java Developer,Data Structures and Algorithms,Arrays and strings > Prefix sums
+Full-Stack Java Developer,Data Structures and Algorithms,Linked lists
+Full-Stack Java Developer,Data Structures and Algorithms,Stacks and queues
+Full-Stack Java Developer,Data Structures and Algorithms,Hashing
+Full-Stack Java Developer,Data Structures and Algorithms,Trees > Binary trees and traversals
+Full-Stack Java Developer,Data Structures and Algorithms,Trees > Binary search trees
+Full-Stack Java Developer,Data Structures and Algorithms,Trees > Heaps
+Full-Stack Java Developer,Data Structures and Algorithms,Trees > Tries
+Full-Stack Java Developer,Data Structures and Algorithms,Graphs > BFS and DFS
+Full-Stack Java Developer,Data Structures and Algorithms,Graphs > Shortest path
+Full-Stack Java Developer,Data Structures and Algorithms,Graphs > Topological sort
+Full-Stack Java Developer,Data Structures and Algorithms,Sorting and searching > Quick sort and merge sort
+Full-Stack Java Developer,Data Structures and Algorithms,Sorting and searching > Binary search
+Full-Stack Java Developer,Data Structures and Algorithms,Recursion and backtracking
+Full-Stack Java Developer,Data Structures and Algorithms,Dynamic programming
+Full-Stack Java Developer,Data Structures and Algorithms,Greedy algorithms
+Full-Stack Java Developer,Design Patterns and Principles,SOLID principles
+Full-Stack Java Developer,Design Patterns and Principles,Creational patterns > Singleton
+Full-Stack Java Developer,Design Patterns and Principles,Creational patterns > Factory and abstract factory
+Full-Stack Java Developer,Design Patterns and Principles,Creational patterns > Builder
+Full-Stack Java Developer,Design Patterns and Principles,Creational patterns > Prototype
+Full-Stack Java Developer,Design Patterns and Principles,Structural patterns > Adapter
+Full-Stack Java Developer,Design Patterns and Principles,Structural patterns > Decorator
+Full-Stack Java Developer,Design Patterns and Principles,Structural patterns > Proxy
+Full-Stack Java Developer,Design Patterns and Principles,Structural patterns > Facade
+Full-Stack Java Developer,Design Patterns and Principles,Behavioral patterns > Strategy
+Full-Stack Java Developer,Design Patterns and Principles,Behavioral patterns > Observer
+Full-Stack Java Developer,Design Patterns and Principles,Behavioral patterns > Command
+Full-Stack Java Developer,Design Patterns and Principles,Behavioral patterns > Template method
+Full-Stack Java Developer,Design Patterns and Principles,Clean code and refactoring
+Full-Stack Java Developer,SQL and Databases,"SQL fundamentals > SELECT, WHERE and ORDER BY"
+Full-Stack Java Developer,SQL and Databases,SQL fundamentals > Joins
+Full-Stack Java Developer,SQL and Databases,SQL fundamentals > GROUP BY and HAVING
+Full-Stack Java Developer,SQL and Databases,SQL fundamentals > Subqueries and CTEs
+Full-Stack Java Developer,SQL and Databases,SQL fundamentals > Window functions
+Full-Stack Java Developer,SQL and Databases,Database design > Normalization
+Full-Stack Java Developer,SQL and Databases,Database design > Keys and constraints
+Full-Stack Java Developer,SQL and Databases,Database design > Indexes
+Full-Stack Java Developer,SQL and Databases,Transactions > ACID properties
+Full-Stack Java Developer,SQL and Databases,Transactions > Isolation levels
+Full-Stack Java Developer,SQL and Databases,Transactions > Locking and deadlocks
+Full-Stack Java Developer,SQL and Databases,Query optimization > Execution plans
+Full-Stack Java Developer,SQL and Databases,Query optimization > Index strategies
+Full-Stack Java Developer,SQL and Databases,PostgreSQL specifics
+Full-Stack Java Developer,SQL and Databases,NoSQL basics > MongoDB
+Full-Stack Java Developer,SQL and Databases,NoSQL basics > Redis caching
+Full-Stack Java Developer,Spring Framework and Spring Boot,Core concepts > Inversion of control and dependency injection
+Full-Stack Java Developer,Spring Framework and Spring Boot,Core concepts > Bean lifecycle and scopes
+Full-Stack Java Developer,Spring Framework and Spring Boot,Core concepts > Configuration: annotations and Java config
+Full-Stack Java Developer,Spring Framework and Spring Boot,Core concepts > Application context
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Boot basics > Auto-configuration
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Boot basics > Starters
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Boot basics > application.yml and profiles
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Boot basics > Actuator
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring MVC and REST > Controllers and request mapping
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring MVC and REST > Request and response bodies
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring MVC and REST > Validation
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring MVC and REST > Exception handling with ControllerAdvice
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring MVC and REST > File upload and download
+Full-Stack Java Developer,Spring Framework and Spring Boot,Aspect-oriented programming
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > Entities and relationships
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > Repositories and derived queries
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > JPQL and native queries
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > Transactions with @Transactional
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > N+1 problem and fetch strategies
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Data JPA > Pagination and sorting
+Full-Stack Java Developer,Spring Framework and Spring Boot,Hibernate > Session and persistence context
+Full-Stack Java Developer,Spring Framework and Spring Boot,Hibernate > First and second level cache
+Full-Stack Java Developer,Spring Framework and Spring Boot,Hibernate > Entity states and lifecycle
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Security > Authentication and authorization
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Security > JWT
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Security > OAuth2 and OpenID Connect
+Full-Stack Java Developer,Spring Framework and Spring Boot,Spring Security > CORS and CSRF
+Full-Stack Java Developer,Spring Framework and Spring Boot,Messaging > Kafka basics
+Full-Stack Java Developer,Spring Framework and Spring Boot,Messaging > RabbitMQ
+Full-Stack Java Developer,Spring Framework and Spring Boot,Scheduling and async processing
+Full-Stack Java Developer,REST API and Web Fundamentals,HTTP basics > Methods and status codes
+Full-Stack Java Developer,REST API and Web Fundamentals,HTTP basics > Headers and caching
+Full-Stack Java Developer,REST API and Web Fundamentals,HTTP basics > HTTPS and TLS
+Full-Stack Java Developer,REST API and Web Fundamentals,REST design > Resource naming
+Full-Stack Java Developer,REST API and Web Fundamentals,REST design > Idempotency
+Full-Stack Java Developer,REST API and Web Fundamentals,"REST design > Pagination, filtering and versioning"
+Full-Stack Java Developer,REST API and Web Fundamentals,REST design > Error handling
+Full-Stack Java Developer,REST API and Web Fundamentals,API documentation with OpenAPI
+Full-Stack Java Developer,REST API and Web Fundamentals,GraphQL basics
+Full-Stack Java Developer,Microservices,Architecture > Monolith vs microservices
+Full-Stack Java Developer,Microservices,Architecture > Service boundaries and domain-driven design
+Full-Stack Java Developer,Microservices,Communication > REST and gRPC
+Full-Stack Java Developer,Microservices,Communication > Event-driven messaging
+Full-Stack Java Developer,Microservices,Spring Cloud > API gateway
+Full-Stack Java Developer,Microservices,Spring Cloud > Service discovery
+Full-Stack Java Developer,Microservices,Spring Cloud > Config server
+Full-Stack Java Developer,Microservices,Spring Cloud > Circuit breaker and resilience
+Full-Stack Java Developer,Microservices,Data management > Database per service
+Full-Stack Java Developer,Microservices,Data management > Saga pattern
+Full-Stack Java Developer,Microservices,Data management > CQRS and event sourcing
+Full-Stack Java Developer,Microservices,Observability > Logging
+Full-Stack Java Developer,Microservices,Observability > Metrics
+Full-Stack Java Developer,Microservices,Observability > Distributed tracing
+Full-Stack Java Developer,Testing,JUnit 5
+Full-Stack Java Developer,Testing,Mockito
+Full-Stack Java Developer,Testing,Spring Boot tests > MockMvc
+Full-Stack Java Developer,Testing,Spring Boot tests > Testcontainers
+Full-Stack Java Developer,Testing,Test-driven development
+Full-Stack Java Developer,Testing,Integration and end-to-end testing
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Maven and Gradle
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Git > Branching and merging
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Git > Rebase vs merge
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Git > Resolving conflicts
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Docker
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Kubernetes basics
+Full-Stack Java Developer,"Build Tools, Git and DevOps",CI/CD pipelines
+Full-Stack Java Developer,"Build Tools, Git and DevOps",Cloud basics (AWS)
+Full-Stack Java Developer,Front-End Basics,HTML and CSS > Semantic HTML
+Full-Stack Java Developer,Front-End Basics,HTML and CSS > Flexbox and grid
+Full-Stack Java Developer,Front-End Basics,HTML and CSS > Responsive design
+Full-Stack Java Developer,Front-End Basics,"JavaScript essentials > Scope, closures and this"
+Full-Stack Java Developer,Front-End Basics,JavaScript essentials > Promises and async/await
+Full-Stack Java Developer,Front-End Basics,JavaScript essentials > DOM and events
+Full-Stack Java Developer,Front-End Basics,TypeScript basics
+Full-Stack Java Developer,System Design,Scalability fundamentals > Load balancing
+Full-Stack Java Developer,System Design,Scalability fundamentals > Caching strategies
+Full-Stack Java Developer,System Design,Scalability fundamentals > Database sharding and replication
+Full-Stack Java Developer,System Design,CAP theorem and consistency
+Full-Stack Java Developer,System Design,Message queues
+Full-Stack Java Developer,System Design,Rate limiting
+Full-Stack Java Developer,System Design,Common designs > URL shortener
+Full-Stack Java Developer,System Design,Common designs > Chat application
+Full-Stack Java Developer,System Design,Common designs > Notification service

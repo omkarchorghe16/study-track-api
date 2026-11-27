@@ -29,6 +29,11 @@ Base URL `http://localhost:8083`. Details in [`docs/API_ENDPOINTS.md`](docs/API_
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/v1/status` | Service name, API version and the current user (also proves the database is reachable) |
+| GET | `/api/v1/users/me` | The current user and whether they are a catalog admin |
+| GET | `/api/v1/catalog/tracks`, `/catalog/tracks/{id}/subjects`, `/catalog/subjects/{id}/topics` | Browse the shared catalog: tracks, their subjects, a subject's topic tree |
+| POST | `/api/v1/catalog/subjects/{id}/enroll` | Copy a catalog subject and its topic tree into the user's own subjects |
+| GET | `/api/v1/catalog/template.csv` | Sample catalog CSV (`track,subject,topic_path`) |
+| POST | `/api/v1/admin/catalog/import` | Admin only: add tracks, subjects and topics from a CSV |
 | GET, POST | `/api/v1/subjects` | List (with topic and item counts) or create subjects |
 | GET, PUT, DELETE | `/api/v1/subjects/{id}` | Read, replace or delete a subject (delete cascades) |
 | GET | `/api/v1/subjects/{id}/topics` | The subject's topic tree with item counts |
@@ -95,6 +100,7 @@ project folder; real environment variables win. Put `ANTHROPIC_API_KEY` there an
 | `MEDIA_MAX_IMAGE_BYTES` | `5242880` | Largest accepted image (5 MB) |
 | `MEDIA_CLEANUP_CRON` / `MEDIA_CLEANUP_GRACE` | `0 30 3 * * *` / `P7D` | When unused images are deleted (`-` = never) and how old they must be |
 | `IMPORT_MAX_FILE_BYTES` | `20971520` | Largest document an import accepts (20 MB) |
+| `CATALOG_SEED_ON_STARTUP` | `true` | Fills an empty catalog from `src/main/resources/catalog/*.csv` at startup (once) |
 | `IMPORT_WORKER_THREADS` | `2` | Imports processed at the same time |
 | `LLM_PROVIDER` | `ANTHROPIC` | Default provider until a user saves settings (`ANTHROPIC`, `OPENAI`, `OLLAMA`) |
 | `ANTHROPIC_API_KEY` | (none) | Claude API key. **Environment or `.env` only; never commit it.** |

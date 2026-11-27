@@ -1,0 +1,98 @@
+track,subject,topic_path
+Python Developer,Python Core,Language basics > Variables and data types
+Python Developer,Python Core,Language basics > Operators and control flow
+Python Developer,Python Core,Language basics > Strings and formatting
+Python Developer,Python Core,Language basics > Functions and arguments
+Python Developer,Python Core,Language basics > Scope and LEGB rule
+Python Developer,Python Core,"Language basics > Lambda, map, filter and reduce"
+Python Developer,Python Core,Data structures > Lists and tuples
+Python Developer,Python Core,Data structures > Dictionaries
+Python Developer,Python Core,Data structures > Sets
+Python Developer,Python Core,Data structures > Comprehensions
+Python Developer,Python Core,Data structures > collections module
+Python Developer,Python Core,Iterators and generators > Iterator protocol
+Python Developer,Python Core,Iterators and generators > Generators and yield
+Python Developer,Python Core,Iterators and generators > Generator expressions
+Python Developer,Python Core,Decorators and closures
+Python Developer,Python Core,Context managers
+Python Developer,Python Core,Exception handling
+Python Developer,Python Core,File handling and I/O
+Python Developer,Python Core,Modules and packages
+Python Developer,Python Core,Memory management > Reference counting and garbage collection
+Python Developer,Python Core,Memory management > Mutable vs immutable objects
+Python Developer,Python Core,Memory management > Shallow vs deep copy
+Python Developer,Python Core,Type hints
+Python Developer,Python Core,Standard library tour > datetime
+Python Developer,Python Core,Standard library tour > itertools and functools
+Python Developer,Python Core,Standard library tour > re and regular expressions
+Python Developer,Python Core,Standard library tour > json and csv
+Python Developer,Object-Oriented Python,Classes and objects
+Python Developer,Object-Oriented Python,Inheritance and MRO
+Python Developer,Object-Oriented Python,Dunder methods
+Python Developer,Object-Oriented Python,Properties and descriptors
+Python Developer,Object-Oriented Python,Abstract base classes
+Python Developer,Object-Oriented Python,Dataclasses
+Python Developer,Object-Oriented Python,Metaclasses
+Python Developer,Object-Oriented Python,Design patterns in Python
+Python Developer,Concurrency and Async,Threading and the GIL
+Python Developer,Concurrency and Async,Multiprocessing
+Python Developer,Concurrency and Async,asyncio > Coroutines and the event loop
+Python Developer,Concurrency and Async,asyncio > Tasks and gather
+Python Developer,Concurrency and Async,concurrent.futures
+Python Developer,Data Structures and Algorithms,Complexity analysis
+Python Developer,Data Structures and Algorithms,Arrays and strings
+Python Developer,Data Structures and Algorithms,"Linked lists, stacks and queues"
+Python Developer,Data Structures and Algorithms,Hash tables
+Python Developer,Data Structures and Algorithms,Trees and graphs
+Python Developer,Data Structures and Algorithms,Sorting and searching
+Python Developer,Data Structures and Algorithms,Recursion and dynamic programming
+Python Developer,Web Frameworks,Django > Project structure and settings
+Python Developer,Web Frameworks,Django > Models and ORM
+Python Developer,Web Frameworks,Django > Views and URLs
+Python Developer,Web Frameworks,Django > Templates
+Python Developer,Web Frameworks,Django > Forms and validation
+Python Developer,Web Frameworks,Django > Admin site
+Python Developer,Web Frameworks,Django > Django REST Framework
+Python Developer,Web Frameworks,Django > Authentication and permissions
+Python Developer,Web Frameworks,Django > Middleware and signals
+Python Developer,Web Frameworks,Flask > Routing and blueprints
+Python Developer,Web Frameworks,Flask > Request and response handling
+Python Developer,Web Frameworks,Flask > Extensions
+Python Developer,Web Frameworks,FastAPI > Path and query parameters
+Python Developer,Web Frameworks,FastAPI > Pydantic models
+Python Developer,Web Frameworks,FastAPI > Dependency injection
+Python Developer,Web Frameworks,FastAPI > Async endpoints
+Python Developer,Web Frameworks,FastAPI > OpenAPI docs
+Python Developer,Databases and ORMs,SQL fundamentals > Joins
+Python Developer,Databases and ORMs,SQL fundamentals > Indexes
+Python Developer,Databases and ORMs,SQL fundamentals > Transactions
+Python Developer,Databases and ORMs,SQLAlchemy > Core vs ORM
+Python Developer,Databases and ORMs,SQLAlchemy > Sessions
+Python Developer,Databases and ORMs,SQLAlchemy > Relationships
+Python Developer,Databases and ORMs,Migrations with Alembic
+Python Developer,Databases and ORMs,Redis
+Python Developer,Databases and ORMs,MongoDB with PyMongo
+Python Developer,Testing,unittest
+Python Developer,Testing,pytest > Fixtures
+Python Developer,Testing,pytest > Parametrization
+Python Developer,Testing,pytest > Mocking
+Python Developer,Testing,Test coverage
+Python Developer,Data Analysis,NumPy > Arrays and broadcasting
+Python Developer,Data Analysis,NumPy > Vectorization
+Python Developer,Data Analysis,Pandas > DataFrames and Series
+Python Developer,Data Analysis,Pandas > Cleaning data
+Python Developer,Data Analysis,Pandas > Grouping and merging
+Python Developer,Data Analysis,Visualization > Matplotlib
+Python Developer,Data Analysis,Visualization > Seaborn
+Python Developer,Tooling and Deployment,Virtual environments and pip
+Python Developer,Tooling and Deployment,Poetry and packaging
+Python Developer,Tooling and Deployment,Linting and formatting > Ruff and Black
+Python Developer,Tooling and Deployment,Linting and formatting > mypy
+Python Developer,Tooling and Deployment,Git
+Python Developer,Tooling and Deployment,Docker
+Python Developer,Tooling and Deployment,CI/CD
+Python Developer,Tooling and Deployment,Logging and debugging
+Python Developer,Automation and Scripting,Working with APIs using requests
+Python Developer,Automation and Scripting,Web scraping
+Python Developer,Automation and Scripting,Command-line tools with argparse and Click
+Python Developer,Automation and Scripting,Scheduling tasks

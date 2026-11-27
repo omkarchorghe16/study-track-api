@@ -10,7 +10,7 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 ## Layout and reference classes
 
 - Base package `com.studytrack.api`, **packaged by feature**: `status`, `user`, and from later phases
-  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`, `search`. Each feature holds its
+  `subject`, `topic`, `item`, `media`, `progress`, `importer`, `llm`, `stats`, `search`, `catalog`. Each feature holds its
   `*Controller`, `*Service`, `*Repository`, `*Entity` and `*Dtos` classes. Controllers call only
   services of their own or another feature, never repositories.
 - Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`,
@@ -29,7 +29,8 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
   `subject` and `progress`. `subject`, `topic` and `item` never import `progress`: they read progress
   numbers with their own read-only queries over `question_progress`/`topic_progress`, and `ItemStatus` lives
   in `item`. `importer` uses `llm`, `media`, `item`, `topic` and `subject`; `llm` uses none of them.
-  `search` uses `item` and `subject`; nothing uses `search`.
+  `search` uses `item` and `subject`; nothing uses `search`. `catalog` uses `subject`, `topic` and `user`; none of them import `catalog`
+  (`subjects.catalog_subject_id` is a plain column of `SubjectEntity`). `content` holds the shared CSV splitter (`CsvRecordSplitter`).
   Keep it that way to avoid circular dependencies.
 - `progress/ReviewScheduler` holds the spaced-repetition rule (unit-tested in `ReviewSchedulerTest`);
   change the schedule there only. "Today" comes from `config/StudyCalendar` (`app.time-zone`), never
@@ -45,6 +46,16 @@ dev-standards) also apply; where this file is more specific, it wins. Edit this 
 - `LoggingAspect` matches classes by the `Controller` and `Service` name suffix, so keep those
   suffixes. Class and method names appear in log lines; a rename must be mentioned for anyone
   searching logs.
+
+## Catalog
+
+- `catalog_tracks` / `catalog_subjects` / `catalog_topics` are shared, topics only (no questions). Only an admin
+  (`users.is_admin`, checked by `CurrentUser.requireAdmin` in `CatalogAdminService`) changes them, through the CSV
+  import (`CatalogImportService`: additive, names matched ignoring case, never deletes). `CatalogSeeder` imports
+  `src/main/resources/catalog/*.csv` once into an empty catalog; `CatalogIntegrationTest` imports the shipped files
+  and fails on any rejected row, so run it after editing them.
+- A user "adds" a catalog subject with `CatalogService.enrollInSubject`, which copies the tree into `subjects` and
+  `topics`; the copy never follows later catalog changes.
 
 ## Users
 

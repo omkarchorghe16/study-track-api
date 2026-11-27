@@ -32,7 +32,7 @@ It loads the project rules, which live in `.github/` and are shared with GitHub 
 ## Layout
 
 Package by feature under `com.studytrack.api` (`status`, `user`, later `subject`, `topic`, `item`,
-`media`, `progress`, `importer`, `llm`, `stats`). Inside each feature: `*Controller` (HTTP) →
+`media`, `progress`, `importer`, `llm`, `stats`, `search`, `catalog`). Inside each feature: `*Controller` (HTTP) →
 `*Service` (use cases, transactions) → `*Repository` / `*Entity` (JPA), with DTOs in `*Dtos`.
 Cross-cutting code: `config` (`AppProperties`, `LoggingAspect`, `WebConfig`, OpenAPI) and
 `exception/ApiExceptionHandler`.

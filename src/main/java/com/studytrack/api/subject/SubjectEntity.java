@@ -36,6 +36,9 @@ public class SubjectEntity {
     @Column(nullable = false)
     private boolean archived;
 
+    @Column(name = "catalog_subject_id", updatable = false)
+    private Long catalogSubjectId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -106,6 +109,14 @@ public class SubjectEntity {
 
     public void setArchived(boolean archived) {
         this.archived = archived;
+    }
+
+    public Long getCatalogSubjectId() {
+        return catalogSubjectId;
+    }
+
+    public void setCatalogSubjectId(Long catalogSubjectId) {
+        this.catalogSubjectId = catalogSubjectId;
     }
 
     public Instant getCreatedAt() {

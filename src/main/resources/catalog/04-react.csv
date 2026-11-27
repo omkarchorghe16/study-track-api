@@ -1,0 +1,90 @@
+track,subject,topic_path
+React Developer,JavaScript for React,"ES6+ features > let, const and arrow functions"
+React Developer,JavaScript for React,ES6+ features > Destructuring and spread
+React Developer,JavaScript for React,ES6+ features > Modules
+React Developer,JavaScript for React,ES6+ features > Template literals
+React Developer,JavaScript for React,Closures and scope
+React Developer,JavaScript for React,Promises and async/await
+React Developer,JavaScript for React,Array methods
+React Developer,JavaScript for React,Event loop
+React Developer,JavaScript for React,Fetch API
+React Developer,TypeScript with React,Typing props and state
+React Developer,TypeScript with React,Typing hooks and events
+React Developer,TypeScript with React,Generic components
+React Developer,React Fundamentals,JSX
+React Developer,React Fundamentals,Components and props
+React Developer,React Fundamentals,Rendering lists and keys
+React Developer,React Fundamentals,Conditional rendering
+React Developer,React Fundamentals,Events
+React Developer,React Fundamentals,Controlled vs uncontrolled components
+React Developer,React Fundamentals,Virtual DOM and reconciliation
+React Developer,React Fundamentals,Fragments and portals
+React Developer,React Fundamentals,Error boundaries
+React Developer,Hooks,useState
+React Developer,Hooks,useEffect > Dependencies and cleanup
+React Developer,Hooks,useEffect > Common pitfalls
+React Developer,Hooks,useRef
+React Developer,Hooks,useContext
+React Developer,Hooks,useReducer
+React Developer,Hooks,useMemo and useCallback
+React Developer,Hooks,useLayoutEffect
+React Developer,Hooks,useTransition and useDeferredValue
+React Developer,Hooks,React 19 hooks and actions
+React Developer,Hooks,Custom hooks
+React Developer,Hooks,Rules of hooks
+React Developer,Component Patterns,Composition vs inheritance
+React Developer,Component Patterns,Lifting state up
+React Developer,Component Patterns,Container and presentational components
+React Developer,Component Patterns,Higher-order components
+React Developer,Component Patterns,Render props
+React Developer,Component Patterns,Compound components
+React Developer,Routing,React Router > Routes and nested routes
+React Developer,Routing,React Router > URL parameters and search params
+React Developer,Routing,React Router > Loaders and actions
+React Developer,Routing,React Router > Protected routes
+React Developer,State Management,Context API
+React Developer,State Management,Redux Toolkit > Slices and reducers
+React Developer,State Management,Redux Toolkit > Async thunks
+React Developer,State Management,Redux Toolkit > RTK Query
+React Developer,State Management,Zustand
+React Developer,State Management,Jotai and Recoil
+React Developer,Data Fetching,fetch and Axios
+React Developer,Data Fetching,TanStack Query > Queries and mutations
+React Developer,Data Fetching,TanStack Query > Caching and invalidation
+React Developer,Data Fetching,Suspense for data
+React Developer,Forms,React Hook Form
+React Developer,Forms,Validation with Zod and Yup
+React Developer,Forms,Formik
+React Developer,Styling,CSS Modules
+React Developer,Styling,Styled-components
+React Developer,Styling,Tailwind CSS
+React Developer,Styling,Component libraries > Material UI
+React Developer,Styling,Component libraries > Chakra UI
+React Developer,Testing,Jest and Vitest
+React Developer,Testing,React Testing Library
+React Developer,Testing,Mocking API calls with MSW
+React Developer,Testing,End-to-end testing > Cypress
+React Developer,Testing,End-to-end testing > Playwright
+React Developer,Performance,Re-render optimization
+React Developer,Performance,React.memo
+React Developer,Performance,Code splitting and lazy loading
+React Developer,Performance,Virtualization of long lists
+React Developer,Performance,Profiling
+React Developer,Performance,Web vitals
+React Developer,Next.js,Routing: pages and app router
+React Developer,Next.js,Server components and client components
+React Developer,Next.js,Rendering strategies > SSR
+React Developer,Next.js,Rendering strategies > SSG
+React Developer,Next.js,Rendering strategies > ISR
+React Developer,Next.js,Data fetching and caching
+React Developer,Next.js,API routes and server actions
+React Developer,Next.js,Authentication
+React Developer,Next.js,Deployment
+React Developer,Tooling and Deployment,Vite and bundlers
+React Developer,Tooling and Deployment,ESLint and Prettier
+React Developer,Tooling and Deployment,npm and package management
+React Developer,Tooling and Deployment,Git
+React Developer,Tooling and Deployment,CI/CD and deployment
+React Developer,Security and Accessibility,XSS and secure rendering
+React Developer,Security and Accessibility,Authentication with JWT
+React Developer,Security and Accessibility,Accessibility (a11y) and ARIA

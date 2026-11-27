@@ -1,0 +1,100 @@
+track,subject,topic_path
+Angular Developer,Web Foundations,HTML and CSS > Semantic HTML
+Angular Developer,Web Foundations,HTML and CSS > Flexbox and grid
+Angular Developer,Web Foundations,HTML and CSS > Responsive design
+Angular Developer,Web Foundations,HTML and CSS > Accessibility basics
+Angular Developer,Web Foundations,"JavaScript essentials > Scope, closures and this"
+Angular Developer,Web Foundations,JavaScript essentials > Prototypes and classes
+Angular Developer,Web Foundations,JavaScript essentials > Promises and async/await
+Angular Developer,Web Foundations,JavaScript essentials > Modules
+Angular Developer,Web Foundations,JavaScript essentials > Event loop
+Angular Developer,TypeScript,Types and interfaces
+Angular Developer,TypeScript,Generics
+Angular Developer,TypeScript,Enums and unions
+Angular Developer,TypeScript,Type narrowing and guards
+Angular Developer,TypeScript,Utility types
+Angular Developer,TypeScript,Decorators
+Angular Developer,TypeScript,Strict mode and tsconfig
+Angular Developer,Angular Fundamentals,Architecture overview > Standalone components
+Angular Developer,Angular Fundamentals,Architecture overview > NgModules
+Angular Developer,Angular Fundamentals,Architecture overview > Angular CLI
+Angular Developer,Angular Fundamentals,Project structure and configuration
+Angular Developer,Angular Fundamentals,Data binding > Interpolation
+Angular Developer,Angular Fundamentals,Data binding > Property binding
+Angular Developer,Angular Fundamentals,Data binding > Event binding
+Angular Developer,Angular Fundamentals,Data binding > Two-way binding
+Angular Developer,Angular Fundamentals,"Control flow > @if, @for and @switch"
+Angular Developer,Angular Fundamentals,Control flow > Legacy structural directives
+Angular Developer,Components and Templates,Component lifecycle hooks
+Angular Developer,Components and Templates,Inputs and outputs
+Angular Developer,Components and Templates,Content projection
+Angular Developer,Components and Templates,ViewChild and ContentChild
+Angular Developer,Components and Templates,Template reference variables
+Angular Developer,Components and Templates,View encapsulation
+Angular Developer,Components and Templates,Change detection > Default vs OnPush
+Angular Developer,Components and Templates,Change detection > Zone.js and zoneless
+Angular Developer,Components and Templates,Deferrable views
+Angular Developer,Directives and Pipes,Attribute directives
+Angular Developer,Directives and Pipes,Custom directives
+Angular Developer,Directives and Pipes,Built-in pipes
+Angular Developer,Directives and Pipes,Custom pure and impure pipes
+Angular Developer,Services and Dependency Injection,Providers and injectors
+Angular Developer,Services and Dependency Injection,providedIn and scopes
+Angular Developer,Services and Dependency Injection,inject() function
+Angular Developer,Services and Dependency Injection,Injection tokens
+Angular Developer,Services and Dependency Injection,Hierarchical injection
+Angular Developer,Signals,"signal, computed and effect"
+Angular Developer,Signals,"Signal inputs, outputs and model"
+Angular Developer,Signals,Resource and linkedSignal
+Angular Developer,Signals,Signals vs RxJS
+Angular Developer,Routing,Route configuration
+Angular Developer,Routing,Route parameters and query params
+Angular Developer,Routing,Child routes and lazy loading
+Angular Developer,Routing,Guards and resolvers
+Angular Developer,Routing,Route animations
+Angular Developer,Routing,Preloading strategies
+Angular Developer,Forms,Template-driven forms
+Angular Developer,Forms,"Reactive forms > FormControl, FormGroup and FormArray"
+Angular Developer,Forms,Reactive forms > Validators
+Angular Developer,Forms,Reactive forms > Custom and async validators
+Angular Developer,Forms,Reactive forms > Dynamic forms
+Angular Developer,Forms,Typed forms
+Angular Developer,HTTP and RxJS,"HttpClient > GET, POST, PUT and DELETE"
+Angular Developer,HTTP and RxJS,HttpClient > Error handling and retry
+Angular Developer,HTTP and RxJS,Interceptors
+Angular Developer,HTTP and RxJS,RxJS basics > Observables and subscriptions
+Angular Developer,HTTP and RxJS,RxJS basics > Subjects and BehaviorSubject
+Angular Developer,HTTP and RxJS,RxJS basics > Cold vs hot observables
+Angular Developer,HTTP and RxJS,"RxJS operators > map, filter and tap"
+Angular Developer,HTTP and RxJS,"RxJS operators > switchMap, mergeMap, concatMap and exhaustMap"
+Angular Developer,HTTP and RxJS,"RxJS operators > combineLatest, forkJoin and zip"
+Angular Developer,HTTP and RxJS,RxJS operators > debounceTime and distinctUntilChanged
+Angular Developer,HTTP and RxJS,Avoiding memory leaks > takeUntilDestroyed
+Angular Developer,HTTP and RxJS,Avoiding memory leaks > async pipe
+Angular Developer,State Management,Service-based state
+Angular Developer,State Management,"NgRx > Actions, reducers and selectors"
+Angular Developer,State Management,NgRx > Effects
+Angular Developer,State Management,NgRx > Entity and component store
+Angular Developer,State Management,Signal store
+Angular Developer,UI and Styling,Angular Material and CDK
+Angular Developer,UI and Styling,Sass and theming
+Angular Developer,UI and Styling,Tailwind CSS
+Angular Developer,UI and Styling,Animations
+Angular Developer,UI and Styling,Internationalization
+Angular Developer,Testing,Unit testing with Jasmine and Karma
+Angular Developer,Testing,Jest and Vitest
+Angular Developer,Testing,TestBed and component testing
+Angular Developer,Testing,Testing services and HTTP
+Angular Developer,Testing,Mocking and spies
+Angular Developer,Testing,End-to-end testing > Cypress
+Angular Developer,Testing,End-to-end testing > Playwright
+Angular Developer,Performance and Build,Bundle size and tree shaking
+Angular Developer,Performance and Build,Lazy loading and code splitting
+Angular Developer,Performance and Build,Server-side rendering and hydration
+Angular Developer,Performance and Build,Image optimization
+Angular Developer,Performance and Build,Profiling with DevTools
+Angular Developer,Performance and Build,Build and deployment
+Angular Developer,Security and Best Practices,XSS protection and sanitization
+Angular Developer,Security and Best Practices,Authentication with JWT and OAuth
+Angular Developer,Security and Best Practices,Project structure and style guide
+Angular Developer,Security and Best Practices,Upgrading Angular versions

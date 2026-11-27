@@ -55,6 +55,40 @@ public class SubjectService {
         return toResponse(saved, SubjectCounts.EMPTY);
     }
 
+    /**
+     * Creates a subject copied from a catalog subject. Fails with 409 when the user already copied it or
+     * already has a subject with that name.
+     */
+    @Transactional
+    public SubjectResponse createSubjectFromCatalog(Long catalogSubjectId, String name, String description,
+                                                    String icon) {
+        long userId = currentUser.getUserId();
+        if (!subjectRepository.findByUserIdAndCatalogSubjectIdIn(userId, List.of(catalogSubjectId)).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You already added this subject");
+        }
+        if (subjectRepository.existsByUserIdAndNameIgnoreCase(userId, name)) {
+            throw duplicateName(name);
+        }
+        SubjectEntity subject = new SubjectEntity(userId);
+        subject.setName(name);
+        subject.setDescription(blankToNull(description));
+        subject.setIcon(blankToNull(icon));
+        subject.setCatalogSubjectId(catalogSubjectId);
+        subject.setSortOrder(subjectRepository.findMaxSortOrder(userId) + 1);
+        return toResponse(subjectRepository.save(subject), SubjectCounts.EMPTY);
+    }
+
+    /** Maps each given catalog subject id the user already copied to the id of the user's subject. */
+    @Transactional(readOnly = true)
+    public Map<Long, Long> mapCopiedSubjects(List<Long> catalogSubjectIds) {
+        if (catalogSubjectIds.isEmpty()) {
+            return Map.of();
+        }
+        return subjectRepository.findByUserIdAndCatalogSubjectIdIn(currentUser.getUserId(), catalogSubjectIds)
+                .stream()
+                .collect(Collectors.toMap(SubjectEntity::getCatalogSubjectId, SubjectEntity::getId));
+    }
+
     @Transactional
     public SubjectResponse replaceSubject(Long subjectId, SubjectRequest request) {
         SubjectEntity subject = findOwnedSubject(subjectId);

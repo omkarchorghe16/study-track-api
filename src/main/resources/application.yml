@@ -39,6 +39,9 @@ app:
     allowed-origin: ${FRONTEND_ORIGIN:http://localhost:4201}
   # Zone for "today" (due reviews, streaks, activity chart). Blank = the server's zone.
   time-zone: ${APP_TIME_ZONE:America/Chicago}
+  catalog:
+    # Fills an empty catalog from the CSV files in src/main/resources/catalog at startup (once).
+    seed-on-startup: ${CATALOG_SEED_ON_STARTUP:true}
   media:
     # Uploaded images are stored here (relative paths resolve against the working directory).
     storage-dir: ${MEDIA_STORAGE_DIR:./data/media}

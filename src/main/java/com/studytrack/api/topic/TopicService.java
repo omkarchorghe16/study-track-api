@@ -109,6 +109,32 @@ public class TopicService {
         topicRepository.delete(findOwnedTopic(topicId));
     }
 
+    /** A topic to create with its subtopics; used to copy a catalog subject's tree. */
+    public record TopicTemplate(String name, List<TopicTemplate> children) {
+    }
+
+    /** Creates the templates (and their subtopics, in order) in a subject; returns how many topics were created. */
+    @Transactional
+    public int copyTopicTree(Long subjectId, List<TopicTemplate> templates) {
+        SubjectEntity subject = subjectService.findOwnedSubject(subjectId);
+        return saveTopicTemplates(subject.getId(), null, templates);
+    }
+
+    private int saveTopicTemplates(Long subjectId, Long parentId, List<TopicTemplate> templates) {
+        int createdCount = 0;
+        int sortOrder = 0;
+        for (TopicTemplate template : templates) {
+            TopicEntity topic = new TopicEntity(subjectId);
+            topic.setParentId(parentId);
+            topic.setName(template.name());
+            topic.setSortOrder(sortOrder);
+            sortOrder++;
+            TopicEntity saved = topicRepository.save(topic);
+            createdCount += 1 + saveTopicTemplates(subjectId, saved.getId(), template.children());
+        }
+        return createdCount;
+    }
+
     /** The topic at the end of a path and how many topics had to be created for it. */
     public record TopicPathResult(TopicEntity topic, int createdTopicCount) {
     }

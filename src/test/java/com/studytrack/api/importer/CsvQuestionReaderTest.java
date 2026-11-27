@@ -1,6 +1,6 @@
 package com.studytrack.api.importer;
 
-import com.studytrack.api.importer.CsvQuestionReader.CsvFormatException;
+import com.studytrack.api.content.CsvFormatException;
 import com.studytrack.api.importer.CsvQuestionReader.CsvQuestionRow;
 import com.studytrack.api.importer.CsvQuestionReader.CsvQuestions;
 import org.junit.jupiter.api.Test;

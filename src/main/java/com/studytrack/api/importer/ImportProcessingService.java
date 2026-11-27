@@ -1,5 +1,6 @@
 package com.studytrack.api.importer;
 
+import com.studytrack.api.content.CsvFormatException;
 import com.studytrack.api.importer.DocumentChunker.DocumentChunk;
 import com.studytrack.api.importer.DocumentParser.DocumentParseException;
 import com.studytrack.api.importer.DocumentParser.ParsedDocument;
@@ -88,7 +89,7 @@ public class ImportProcessingService {
             runImport(job);
         } catch (ImportFailure failure) {
             failJob(job, failure.getMessage());
-        } catch (CsvQuestionReader.CsvFormatException exception) {
+        } catch (CsvFormatException exception) {
             failJob(job, "The CSV could not be read: " + exception.getMessage());
         } catch (DocumentParseException exception) {
             log.warn("Import document unreadable: jobId={} fileType={} exceptionType={}", jobId, job.getFileType(),

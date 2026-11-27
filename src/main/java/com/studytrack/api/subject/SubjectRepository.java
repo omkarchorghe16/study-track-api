@@ -15,6 +15,8 @@ public interface SubjectRepository extends JpaRepository<SubjectEntity, Long> {
 
     boolean existsByUserIdAndNameIgnoreCase(Long userId, String name);
 
+    List<SubjectEntity> findByUserIdAndCatalogSubjectIdIn(Long userId, Collection<Long> catalogSubjectIds);
+
     boolean existsByUserIdAndNameIgnoreCaseAndIdNot(Long userId, String name, Long id);
 
     @Query("select coalesce(max(s.sortOrder), -1) from SubjectEntity s where s.userId = :userId")

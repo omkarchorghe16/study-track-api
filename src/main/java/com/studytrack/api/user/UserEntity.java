@@ -25,6 +25,9 @@ public class UserEntity {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "is_admin", nullable = false, insertable = false, updatable = false)
+    private boolean admin;
+
     protected UserEntity() {
     }
 
@@ -42,5 +45,9 @@ public class UserEntity {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isAdmin() {
+        return admin;
     }
 }
